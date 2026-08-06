@@ -26,6 +26,13 @@ const fmt = (d: Date) => d.toISOString().split("T")[0];
 const today = new Date();
 const formatPeso = (n: number) => "₱" + n.toLocaleString("en-PH");
 
+// MongoDB returns date as ISO string "2026-08-15T00:00:00.000Z" but calendar
+// comparisons use "YYYY-MM-DD". Normalize on every API response.
+const normalizeDate = (s: Schedule): Schedule => ({
+  ...s,
+  date: s.date?.includes("T") ? s.date.split("T")[0] : s.date,
+});
+
 function formatDateFull(dateStr: string) {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-PH", {
     weekday: "short", month: "short", day: "numeric", year: "numeric",
@@ -75,7 +82,12 @@ export default function Schedules() {
         setFacilities(facRes.data);
       }
       if (schedRes.success && schedRes.data) {
-        setSchedules(schedRes.data);
+        // Normalize date from ISO (e.g. "2026-08-15T00:00:00.000Z") to "YYYY-MM-DD"
+        const normalized = schedRes.data.map(s => ({
+          ...s,
+          date: s.date.includes("T") ? s.date.split("T")[0] : s.date,
+        }));
+        setSchedules(normalized);
       }
     } catch (err) {
       console.error(err);
@@ -116,7 +128,7 @@ export default function Schedules() {
     try {
       const res = await scheduleService.create(newSchedule as any);
       if (res.success && res.data) {
-        setSchedules(s => [...s, res.data!]);
+        setSchedules(s => [...s, normalizeDate(res.data!)]);
         setNewSchedule({ ...EMPTY_SCHEDULE });
         setShowModal(false);
         setSaved(true);
@@ -135,7 +147,8 @@ export default function Schedules() {
     try {
       const res = await scheduleService.update(id, { status });
       if (res.success && res.data) {
-        setSchedules(s => s.map(x => (x.id === id || x._id === id) ? res.data! : x));
+        const norm = normalizeDate(res.data!);
+        setSchedules(s => s.map(x => (x.id === id || x._id === id) ? norm : x));
         if (detailModal?.id === id || detailModal?._id === id) setDetailModal(d => d ? { ...d, status } : d);
       }
     } catch (err) {
@@ -150,7 +163,8 @@ export default function Schedules() {
       if (!id) return;
       const res = await scheduleService.update(id, editModal);
       if (res.success && res.data) {
-        setSchedules(s => s.map(x => (x.id === id || x._id === id) ? res.data! : x));
+        const norm = normalizeDate(res.data!);
+        setSchedules(s => s.map(x => (x.id === id || x._id === id) ? norm : x));
         setEditModal(null);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);

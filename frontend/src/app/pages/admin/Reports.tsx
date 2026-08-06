@@ -69,7 +69,13 @@ export default function Reports() {
         maintenanceService.getAll()
       ]);
       if (fRes.success && fRes.data) setFacilities(fRes.data);
-      if (sRes.success && sRes.data) setSchedulesData(sRes.data);
+      if (sRes.success && sRes.data) {
+        // Normalize ISO dates to YYYY-MM-DD
+        setSchedulesData(sRes.data.map(s => ({
+          ...s,
+          date: s.date?.includes("T") ? s.date.split("T")[0] : s.date,
+        })));
+      }
       if (mRes.success && mRes.data) setMaintenanceData(mRes.data);
     } catch (err) {
       console.error(err);
