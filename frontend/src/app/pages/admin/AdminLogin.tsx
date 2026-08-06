@@ -1,5 +1,5 @@
 import { useState, FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { Navigate, useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from "lucide-react";
 import { useAdminAuth } from "../../context/AdminAuth";
@@ -14,17 +14,16 @@ export default function AdminLogin() {
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
 
+  // If already authenticated, redirect to admin dashboard
   if (isAuthenticated) {
-    navigate("/admin", { replace: true });
-    return null;
+    return <Navigate to="/admin" replace />;
   }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    const ok = login(email, password);
+    const ok = await login(email, password);
     if (ok) {
       navigate("/admin", { replace: true });
     } else {

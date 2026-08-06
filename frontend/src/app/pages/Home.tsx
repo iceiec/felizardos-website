@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { motion, useScroll, useTransform } from "motion/react";
 import {
@@ -9,6 +9,9 @@ import {
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import { FadeUp, ScaleIn } from "../components/shared";
+import { contentService } from "../services/contentService";
+import { DEFAULT_SITE_CONTENT, type SiteContent } from "../utils/adminData";
+import { scheduleService } from "../services/scheduleService";
 
 const IMGS = {
   hero:      "https://images.unsplash.com/photo-1778514253639-3bd14410db8b?w=1920&h=1080&fit=crop&auto=format",
@@ -26,10 +29,63 @@ const IMGS = {
 };
 
 export default function Home() {
+  const [content, setContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
+  
+  // Form State
+  const [formData, setFormData] = useState({
+    clientName: "",
+    phone: "",
+    email: "",
+    title: "", // event type
+    date: "",
+    facilityId: "",
+    notes: ""
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formStatus, setFormStatus] = useState<"idle" | "success" | "error">("idle");
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setFormStatus("idle");
+    try {
+      const res = await scheduleService.createInquiry({
+        ...formData,
+        facilityId: formData.facilityId || "pavilion", // default fallback
+        startTime: "09:00",
+        endTime: "17:00",
+        status: "pending",
+      });
+      if (res.success) {
+        setFormStatus("success");
+        setFormData({ clientName: "", phone: "", email: "", title: "", date: "", facilityId: "", notes: "" });
+      } else {
+        setFormStatus("error");
+      }
+    } catch (err) {
+      console.error(err);
+      setFormStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroImgY    = useTransform(scrollYProgress, [0, 1], ["0%", "35%"]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
+
+  useEffect(() => {
+    contentService.get().then(res => {
+      if (res.success && res.data) {
+        setContent(prev => ({ ...prev, ...res.data }));
+      }
+    }).catch(console.error);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F9F8F4] text-[#111] font-sans overflow-x-hidden">
@@ -57,7 +113,7 @@ export default function Home() {
             className="inline-flex items-center gap-2 text-[#B8D4A0] text-[11px] tracking-[0.45em] uppercase mb-7 font-medium"
           >
             <span className="w-8 h-px bg-[#B8D4A0]/50" />
-            Premium Event Venue · Philippines
+            {content.heroTagline}
             <span className="w-8 h-px bg-[#B8D4A0]/50" />
           </motion.span>
 
@@ -65,10 +121,11 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 1, ease: [0.22, 1, 0.36, 1] }}
-            className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-[88px] text-white font-bold leading-[1.04] max-w-5xl mb-8"
+            className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-[88px] text-white font-bold leading-[1.04] max-w-5xl mb-8 whitespace-pre-line"
           >
-            Where Every<br />Moment Becomes<br />
-            <em className="not-italic text-[#A8C88A]">A Memory</em>
+            {content.heroTitle}
+            <br />
+            <em className="not-italic text-[#A8C88A]">{content.heroHighlight}</em>
           </motion.h1>
 
           <motion.p
@@ -77,7 +134,7 @@ export default function Home() {
             transition={{ delay: 0.6, duration: 0.85 }}
             className="text-white/65 text-[17px] max-w-lg mb-10 leading-relaxed"
           >
-            Two stunning venues — an elegant Pavilion and a resort-style Swimming Pool — crafted for celebrations that deserve to be remembered.
+            {content.heroSubtitle}
           </motion.p>
 
           <motion.div
@@ -164,8 +221,8 @@ export default function Home() {
           <FadeUp delay={0.12} className="lg:pl-4">
             <span className="text-[#2D5016] text-[11px] tracking-[0.45em] uppercase font-medium mb-4 block">Venue 01</span>
             <h3 className="font-display text-4xl md:text-5xl font-bold mb-5 leading-[1.08]">The Pavilion</h3>
-            <p className="text-[#555] leading-relaxed mb-8 text-[17px]">
-              An open-air masterpiece embraced by lush greenery and golden natural light. The Pavilion transforms any occasion into an elegant affair — from intimate garden weddings to grand corporate galas — accommodating up to 200 guests in effortless style.
+            <p className="text-[#555] leading-relaxed mb-8 text-[17px] whitespace-pre-line">
+              {content.pavilionDescription}
             </p>
             <ul className="space-y-3 mb-10">
               {[
@@ -215,8 +272,8 @@ export default function Home() {
           <FadeUp delay={0.12} className="order-2 lg:order-1 lg:pr-4">
             <span className="text-[#2D5016] text-[11px] tracking-[0.45em] uppercase font-medium mb-4 block">Venue 02</span>
             <h3 className="font-display text-4xl md:text-5xl font-bold mb-5 leading-[1.08]">Swimming Pool</h3>
-            <p className="text-[#555] leading-relaxed mb-8 text-[17px]">
-              Dive into a tropical paradise. Our resort-style swimming pool turns any gathering into a sun-soaked celebration — perfect for pool parties, children's birthdays, team-building retreats, and intimate sundowner events.
+            <p className="text-[#555] leading-relaxed mb-8 text-[17px] whitespace-pre-line">
+              {content.poolDescription}
             </p>
             <ul className="space-y-3 mb-10">
               {[
@@ -476,10 +533,10 @@ export default function Home() {
             </p>
             <div className="space-y-6">
               {[
-                { Icon: MapPin, label: "Location",    value: "Felizardo's Event Place, Batangas, Philippines" },
-                { Icon: Phone,  label: "Phone",        value: "+63 912 345 6789" },
-                { Icon: Mail,   label: "Email",        value: "events@felizardos.com" },
-                { Icon: Clock,  label: "Office Hours", value: "Monday – Saturday, 9:00 AM – 6:00 PM" },
+                { Icon: MapPin, label: "Location",    value: content.contactAddress },
+                { Icon: Phone,  label: "Phone",        value: content.contactPhone },
+                { Icon: Mail,   label: "Email",        value: content.contactEmail },
+                { Icon: Clock,  label: "Office Hours", value: content.contactHours },
               ].map(({ Icon, label, value }, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl bg-[#EEF5E8] flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -507,56 +564,70 @@ export default function Home() {
           <FadeUp delay={0.14}>
             <div className="bg-white border border-[#E4DFCF] rounded-3xl p-8 shadow-sm">
               <h3 className="font-display text-[22px] font-bold mb-6">Send an Inquiry</h3>
-              <form className="space-y-5">
+              {formStatus === "success" && (
+                <div className="mb-6 p-4 bg-[#EEF5E8] text-[#2D5016] rounded-xl border border-[#C0D4B0] text-[14px]">
+                  Thank you for your inquiry! Our team will contact you within 24 hours.
+                </div>
+              )}
+              {formStatus === "error" && (
+                <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 text-[14px]">
+                  Something went wrong. Please try again or contact us directly.
+                </div>
+              )}
+              <form onSubmit={handleFormSubmit} className="space-y-5">
                 <div className="grid sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Full Name</label>
-                    <input type="text" placeholder="Maria Santos" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] placeholder:text-[#bbb]" />
+                    <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Full Name *</label>
+                    <input required name="clientName" value={formData.clientName} onChange={handleFormChange} type="text" placeholder="Maria Santos" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] placeholder:text-[#bbb]" />
                   </div>
                   <div>
-                    <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Phone Number</label>
-                    <input type="tel" placeholder="+63 912 345 6789" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] placeholder:text-[#bbb]" />
+                    <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Phone Number *</label>
+                    <input required name="phone" value={formData.phone} onChange={handleFormChange} type="tel" placeholder="+63 912 345 6789" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] placeholder:text-[#bbb]" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Email Address</label>
-                  <input type="email" placeholder="maria@example.com" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] placeholder:text-[#bbb]" />
+                  <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Email Address *</label>
+                  <input required name="email" value={formData.email} onChange={handleFormChange} type="email" placeholder="maria@example.com" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] placeholder:text-[#bbb]" />
                 </div>
                 <div className="grid sm:grid-cols-2 gap-5">
                   <div>
                     <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Event Type</label>
-                    <select className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] text-[#444] appearance-none cursor-pointer">
+                    <select name="title" value={formData.title} onChange={handleFormChange} className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] text-[#444] appearance-none cursor-pointer">
                       <option value="">Select type…</option>
-                      <option>Wedding</option>
-                      <option>Birthday / Debut</option>
-                      <option>Corporate Event</option>
-                      <option>Pool Party</option>
-                      <option>Graduation</option>
-                      <option>Other</option>
+                      <option value="Wedding">Wedding</option>
+                      <option value="Birthday / Debut">Birthday / Debut</option>
+                      <option value="Corporate Event">Corporate Event</option>
+                      <option value="Pool Party">Pool Party</option>
+                      <option value="Graduation">Graduation</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Preferred Date</label>
-                    <input type="date" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] text-[#444]" />
+                    <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Preferred Date *</label>
+                    <input required name="date" value={formData.date} onChange={handleFormChange} type="date" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all bg-[#FDFCF8] text-[#444]" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Venue Preference</label>
+                  <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Venue Preference *</label>
                   <div className="grid grid-cols-3 gap-3">
-                    {["Pavilion", "Pool", "Both Venues"].map(v => (
-                      <label key={v} className="flex items-center justify-center gap-2 border border-[#E4DFCF] rounded-xl px-3 py-2.5 text-[13px] cursor-pointer hover:border-[#2D5016] hover:bg-[#EEF5E8] transition-all duration-200">
-                        <input type="radio" name="venue" className="accent-[#2D5016]" />
-                        <span className="text-[#444]">{v}</span>
+                    {[
+                      { id: "pavilion", label: "Pavilion" },
+                      { id: "pool", label: "Pool" },
+                      { id: "both", label: "Both Venues" }
+                    ].map(v => (
+                      <label key={v.id} className={`flex items-center justify-center gap-2 border rounded-xl px-3 py-2.5 text-[13px] cursor-pointer transition-all duration-200 ${formData.facilityId === v.id ? "border-[#2D5016] bg-[#EEF5E8]" : "border-[#E4DFCF] hover:border-[#2D5016] hover:bg-[#EEF5E8]"}`}>
+                        <input required type="radio" name="facilityId" value={v.id} checked={formData.facilityId === v.id} onChange={handleFormChange} className="hidden" />
+                        <span className="text-[#444]">{v.label}</span>
                       </label>
                     ))}
                   </div>
                 </div>
                 <div>
                   <label className="text-[11px] tracking-[0.2em] text-[#999] uppercase mb-1.5 block">Message</label>
-                  <textarea rows={4} placeholder="Tell us about your event, expected number of guests, and any special requirements…" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all resize-none bg-[#FDFCF8] placeholder:text-[#bbb]" />
+                  <textarea name="notes" value={formData.notes} onChange={handleFormChange} rows={4} placeholder="Tell us about your event, expected number of guests, and any special requirements…" className="w-full border border-[#E4DFCF] rounded-xl px-4 py-3 text-[14px] focus:outline-none focus:border-[#2D5016] focus:ring-2 focus:ring-[#2D5016]/10 transition-all resize-none bg-[#FDFCF8] placeholder:text-[#bbb]" />
                 </div>
-                <button type="submit" className="w-full bg-[#1E3A1E] text-white py-4 rounded-xl text-[13px] font-medium tracking-wide hover:bg-[#2D5016] transition-all duration-300 hover:shadow-lg hover:shadow-[#1E3A1E]/20 active:scale-[0.99]">
-                  Send Inquiry
+                <button disabled={isSubmitting} type="submit" className="w-full bg-[#1E3A1E] text-white py-4 rounded-xl text-[13px] font-medium tracking-wide hover:bg-[#2D5016] transition-all duration-300 hover:shadow-lg hover:shadow-[#1E3A1E]/20 active:scale-[0.99] disabled:opacity-70">
+                  {isSubmitting ? "Sending..." : "Send Inquiry"}
                 </button>
                 <p className="text-center text-[12px] text-[#aaa]">We respond within 24 hours · No commitment required</p>
               </form>

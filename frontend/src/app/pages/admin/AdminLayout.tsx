@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate, useLocation } from "react-router";
+import { Outlet, NavLink, useNavigate, useLocation, Navigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutDashboard, Building2, CalendarDays, Wrench,
@@ -84,14 +84,13 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) navigate("/admin/login", { replace: true });
-  }, [isAuthenticated, navigate]);
-
-  useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
 
-  if (!isAuthenticated) return null;
+  // If not authenticated, redirect to login — use Navigate component, not useEffect
+  if (!isAuthenticated) {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   const handleLogout = () => {
     logout();

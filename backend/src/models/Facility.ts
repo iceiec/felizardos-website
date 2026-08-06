@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 import type { IFacility } from "../types";
 
-export interface FacilityDocument extends IFacility, Document {}
+export interface FacilityDocument extends Omit<IFacility, "id">, Document {}
 
 const FacilitySchema = new Schema<FacilityDocument>(
   {

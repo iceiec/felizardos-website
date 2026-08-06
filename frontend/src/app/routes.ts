@@ -18,7 +18,7 @@ export const router = createBrowserRouter([
   { path: "/venues/pavilion", Component: PavilionPage },
   { path: "/venues/pool", Component: PoolPage },
 
-  // Admin login (standalone, no layout)
+  // Admin login (standalone, no layout) - must be before /admin route
   { path: "/admin/login", Component: AdminLogin },
 
   // Admin dashboard (protected, with sidebar layout)

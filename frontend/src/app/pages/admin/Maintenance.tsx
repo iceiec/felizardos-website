@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Plus, X, Check, Filter, AlertTriangle,
+  Plus, X, Check, Filter, AlertTriangle, Trash2,
   CheckCircle2, Clock, Wrench,
 } from "lucide-react";
 import {
-  INITIAL_MAINTENANCE, INITIAL_FACILITIES, FACILITY_COLORS,
-  type MaintenanceItem, type MaintenancePriority, type MaintenanceStatus,
+  FACILITY_COLORS,
+  type MaintenanceItem, type MaintenancePriority, type MaintenanceStatus, type Facility
 } from "../../utils/adminData";
-
-const FACILITY_MAP = Object.fromEntries(INITIAL_FACILITIES.map(f => [f.id, f]));
+import { facilityService } from "../../services/facilityService";
+import { maintenanceService } from "../../services/maintenanceService";
 
 const PRIORITY_STYLES: Record<MaintenancePriority, { badge: string; dot: string; label: string }> = {
   critical: { badge: "bg-red-50 text-red-700 border-red-200",    dot: "bg-red-500",    label: "Critical" },
@@ -42,40 +42,93 @@ const EMPTY_ITEM: Omit<MaintenanceItem, "id"> = {
 };
 
 export default function Maintenance() {
-  const [items, setItems] = useState<MaintenanceItem[]>(INITIAL_MAINTENANCE);
+  const [items, setItems] = useState<MaintenanceItem[]>([]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [filterStatus, setFilterStatus] = useState<MaintenanceStatus | "all">("all");
   const [filterFacility, setFilterFacility] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [editModal, setEditModal] = useState<MaintenanceItem | null>(null);
   const [newItem, setNewItem] = useState({ ...EMPTY_ITEM });
-  const [savedId, setSavedId] = useState<number | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
-  const flash = (id: number) => { setSavedId(id); setTimeout(() => setSavedId(null), 2000); };
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [facRes, maintRes] = await Promise.all([
+        facilityService.getAll(),
+        maintenanceService.getAll()
+      ]);
+      if (facRes.success && facRes.data) setFacilities(facRes.data);
+      if (maintRes.success && maintRes.data) setItems(maintRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const FACILITY_MAP = Object.fromEntries(facilities.map(f => [f.id, f]));
+
+  const flash = (id: string) => { setSavedId(id); setTimeout(() => setSavedId(null), 2000); };
 
   const filtered = items.filter(m =>
     (filterStatus === "all" || m.status === filterStatus) &&
     (filterFacility === "all" || m.facilityId === filterFacility)
   );
 
-  const addItem = () => {
-    const id = Math.max(0, ...items.map(i => i.id)) + 1;
-    setItems(prev => [...prev, { ...newItem, id }]);
-    setNewItem({ ...EMPTY_ITEM });
-    setShowModal(false);
-    flash(id);
+  const addItem = async () => {
+    try {
+      const res = await maintenanceService.create(newItem as any);
+      if (res.success && res.data) {
+        setItems(prev => [...prev, res.data!]);
+        setNewItem({ ...EMPTY_ITEM });
+        setShowModal(false);
+        flash(res.data.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const updateStatus = (id: number, status: MaintenanceStatus) => {
-    setItems(prev => prev.map(m => m.id === id ? { ...m, status } : m));
-    if (editModal?.id === id) setEditModal(e => e ? { ...e, status } : e);
-    flash(id);
+  const updateStatus = async (id: string, status: MaintenanceStatus) => {
+    try {
+      const res = await maintenanceService.update(id, { status });
+      if (res.success && res.data) {
+        setItems(prev => prev.map(m => m.id === id ? res.data! : m));
+        if (editModal?.id === id) setEditModal(e => e ? { ...e, status } : e);
+        flash(id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editModal) return;
-    setItems(prev => prev.map(m => m.id === editModal.id ? editModal : m));
-    flash(editModal.id);
-    setEditModal(null);
+    try {
+      const res = await maintenanceService.update(editModal.id, editModal);
+      if (res.success && res.data) {
+        setItems(prev => prev.map(m => m.id === editModal.id ? res.data! : m));
+        flash(editModal.id);
+        setEditModal(null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteItem = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this maintenance task?")) return;
+    try {
+      const res = await maintenanceService.delete(id);
+      if (res.success) {
+        setItems(prev => prev.filter(m => m.id !== id));
+        if (editModal?.id === id) setEditModal(null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const counts = {
@@ -134,7 +187,7 @@ export default function Maintenance() {
           className="border border-[#E5E7EB] rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:border-[#2D5016] bg-white"
         >
           <option value="all">All Facilities</option>
-          {INITIAL_FACILITIES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
       </div>
 
@@ -253,7 +306,7 @@ export default function Maintenance() {
       <AnimatePresence>
         {showModal && (
           <Modal title="Add Maintenance Task" onClose={() => setShowModal(false)}>
-            <MaintenanceForm data={newItem as MaintenanceItem} onChange={setNewItem as any} />
+            <MaintenanceForm facilities={facilities} data={newItem as MaintenanceItem} onChange={setNewItem as any} />
             <div className="flex gap-3 mt-6">
               <button onClick={addItem} disabled={!newItem.title.trim()} className="flex-1 bg-[#1E3A1E] text-white py-3 rounded-xl text-[13px] font-medium hover:bg-[#2D5016] transition-colors disabled:opacity-50">
                 Add Task
@@ -270,12 +323,16 @@ export default function Maintenance() {
       <AnimatePresence>
         {editModal && (
           <Modal title="Edit Task" onClose={() => setEditModal(null)}>
-            <MaintenanceForm data={editModal} onChange={setEditModal as any} />
-            <div className="flex gap-3 mt-6">
+            <MaintenanceForm facilities={facilities} data={editModal} onChange={setEditModal as any} />
+            <div className="flex items-center gap-3 mt-6">
               <button onClick={saveEdit} className="flex-1 bg-[#1E3A1E] text-white py-3 rounded-xl text-[13px] font-medium hover:bg-[#2D5016] transition-colors">
                 Save Changes
               </button>
-              <button onClick={() => setEditModal(null)} className="flex-1 border border-[#E5E7EB] text-[#666] py-3 rounded-xl text-[13px] font-medium hover:bg-[#F4F5F7] transition-colors">
+              <button onClick={() => deleteItem(editModal.id || (editModal as any)._id)} className="px-4 py-3 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-[13px] font-medium transition-colors flex items-center gap-1.5">
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+              <button onClick={() => setEditModal(null)} className="px-4 py-3 border border-[#E5E7EB] text-[#666] rounded-xl text-[13px] font-medium hover:bg-[#F4F5F7] transition-colors">
                 Cancel
               </button>
             </div>
@@ -286,14 +343,14 @@ export default function Maintenance() {
   );
 }
 
-function MaintenanceForm({ data, onChange }: { data: MaintenanceItem; onChange: (d: MaintenanceItem) => void }) {
+function MaintenanceForm({ data, onChange, facilities }: { data: MaintenanceItem; onChange: (d: MaintenanceItem) => void; facilities: Facility[] }) {
   const f = (key: keyof MaintenanceItem, val: string) => onChange({ ...data, [key]: val });
   return (
     <div className="space-y-4">
       <div>
         <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Facility *</label>
         <select value={data.facilityId} onChange={e => f("facilityId", e.target.value)} className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] bg-white">
-          {INITIAL_FACILITIES.map(fac => <option key={fac.id} value={fac.id}>{fac.name}</option>)}
+          {facilities.map(fac => <option key={fac.id} value={fac.id}>{fac.name}</option>)}
         </select>
       </div>
       <div>

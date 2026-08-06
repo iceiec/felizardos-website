@@ -43,7 +43,9 @@ export async function createSchedule(req: Request, res: Response): Promise<void>
 
 export async function updateSchedule(req: Request, res: Response): Promise<void> {
   try {
-    const schedule = await Schedule.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+    delete updateData._id;
+    const schedule = await Schedule.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });

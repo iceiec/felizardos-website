@@ -24,7 +24,7 @@ export interface Facility {
 
 export interface Schedule {
   _id?: string;
-  id: number;
+  id: string;
   facilityId: string;
   title?: string;        // not used for basketball courts
   clientName: string;
@@ -42,7 +42,7 @@ export interface Schedule {
 
 export interface MaintenanceItem {
   _id?: string;
-  id: number;
+  id: string;
   facilityId: string;
   title: string;
   description: string;

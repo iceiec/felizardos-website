@@ -19,6 +19,7 @@ const ScheduleSchema = new Schema<ScheduleDocument>(
     guests: { type: Number, default: null },
     packageName: { type: String, default: "" },
     phone: { type: String, default: "" },
+    email: { type: String, default: "" },
     notes: { type: String, default: "" },
   },
   { timestamps: true }

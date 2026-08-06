@@ -1,19 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronLeft, ChevronRight, Plus, X, Check,
-  Clock, Users, Phone, FileText, Calendar,
+  Clock, Users, Phone, Mail, FileText, Calendar, Trash2, Edit2,
 } from "lucide-react";
 import {
-  INITIAL_SCHEDULES, INITIAL_FACILITIES, FACILITY_COLORS,
-  type Schedule, type BookingStatus,
+  FACILITY_COLORS,
+  type Schedule, type BookingStatus, type Facility
 } from "../../utils/adminData";
+import { facilityService } from "../../services/facilityService";
+import { scheduleService } from "../../services/scheduleService";
 
 // Basketball courts don't use event title, guests, package, or notes
 const COURT_IDS = ["andoy", "juliet"];
 const isCourt = (facilityId: string) => COURT_IDS.includes(facilityId);
-
-const FACILITY_MAP = Object.fromEntries(INITIAL_FACILITIES.map(f => [f.id, f]));
 
 const STATUS_STYLES: Record<BookingStatus, string> = {
   confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -43,21 +43,46 @@ const EMPTY_SCHEDULE: Omit<Schedule, "id"> = {
   guests: undefined,
   packageName: "",
   phone: "",
+  email: "",
   notes: "",
 };
 
-// Display label: event title for venues, client name for courts
 const bookingLabel = (s: Schedule) => s.title?.trim() || s.clientName;
 
 export default function Schedules() {
-  const [schedules, setSchedules] = useState<Schedule[]>(INITIAL_SCHEDULES);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [calendarDate, setCalendarDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState<string | null>(fmt(today));
   const [filterFacility, setFilterFacility] = useState<string>("all");
   const [showModal, setShowModal] = useState(false);
   const [detailModal, setDetailModal] = useState<Schedule | null>(null);
+  const [editModal, setEditModal] = useState<Schedule | null>(null);
   const [newSchedule, setNewSchedule] = useState({ ...EMPTY_SCHEDULE });
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [facRes, schedRes] = await Promise.all([
+        facilityService.getAll(),
+        scheduleService.getAll()
+      ]);
+      if (facRes.success && facRes.data) {
+        setFacilities(facRes.data);
+      }
+      if (schedRes.success && schedRes.data) {
+        setSchedules(schedRes.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const FACILITY_MAP = Object.fromEntries(facilities.map(f => [f.id, f]));
 
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
@@ -83,27 +108,70 @@ export default function Schedules() {
     setNewSchedule(s => ({
       ...s,
       facilityId,
-      // clear event-only fields when switching to a court
       ...(isCourt(facilityId) ? { title: "", guests: undefined, packageName: "", notes: "" } : {}),
     }));
   };
 
-  const addSchedule = () => {
-    const id = Math.max(0, ...schedules.map(s => s.id)) + 1;
-    setSchedules(s => [...s, { ...newSchedule, id }]);
-    setNewSchedule({ ...EMPTY_SCHEDULE });
-    setShowModal(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const addSchedule = async () => {
+    try {
+      const res = await scheduleService.create(newSchedule as any);
+      if (res.success && res.data) {
+        setSchedules(s => [...s, res.data!]);
+        setNewSchedule({ ...EMPTY_SCHEDULE });
+        setShowModal(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const isAddDisabled = isCourt(newSchedule.facilityId)
     ? !newSchedule.clientName.trim()
     : !newSchedule.title?.trim();
 
-  const updateStatus = (id: number, status: BookingStatus) => {
-    setSchedules(s => s.map(x => x.id === id ? { ...x, status } : x));
-    if (detailModal?.id === id) setDetailModal(d => d ? { ...d, status } : d);
+  const updateStatus = async (id: string, status: BookingStatus) => {
+    try {
+      const res = await scheduleService.update(id, { status });
+      if (res.success && res.data) {
+        setSchedules(s => s.map(x => (x.id === id || x._id === id) ? res.data! : x));
+        if (detailModal?.id === id || detailModal?._id === id) setDetailModal(d => d ? { ...d, status } : d);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const saveEdit = async () => {
+    if (!editModal) return;
+    try {
+      const id = editModal.id || (editModal as any)._id;
+      if (!id) return;
+      const res = await scheduleService.update(id, editModal);
+      if (res.success && res.data) {
+        setSchedules(s => s.map(x => (x.id === id || x._id === id) ? res.data! : x));
+        setEditModal(null);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteSchedule = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this booking schedule?")) return;
+    try {
+      const targetId = id || (detailModal as any)?._id;
+      const res = await scheduleService.delete(targetId);
+      if (res.success) {
+        setSchedules(s => s.filter(x => x.id !== targetId && x._id !== targetId));
+        setDetailModal(null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -125,7 +193,7 @@ export default function Schedules() {
             className="border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[13px] focus:outline-none focus:border-[#2D5016] bg-white"
           >
             <option value="all">All Facilities</option>
-            {INITIAL_FACILITIES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
           <button
             onClick={() => setShowModal(true)}
@@ -218,7 +286,7 @@ export default function Schedules() {
           </div>
 
           <div className="flex flex-wrap gap-3 mt-5 pt-4 border-t border-[#F3F4F6]">
-            {INITIAL_FACILITIES.map(f => (
+            {facilities.map(f => (
               <div key={f.id} className="flex items-center gap-1.5 text-[11px] text-[#888]">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: FACILITY_COLORS[f.id] }} />
                 {f.name}
@@ -337,7 +405,7 @@ export default function Schedules() {
                   onChange={e => handleFacilityChange(e.target.value)}
                   className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] bg-white"
                 >
-                  {INITIAL_FACILITIES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
                 {isCourt(newSchedule.facilityId) && (
                   <p className="text-[11px] text-[#7C3AED] mt-1.5">Basketball court — simplified booking (no event title, guests, or package needed)</p>
@@ -528,6 +596,7 @@ export default function Schedules() {
                 )}
                 <Detail icon={<Users className="w-3.5 h-3.5" />} label="Client" value={detailModal.clientName} />
                 <Detail icon={<Phone className="w-3.5 h-3.5" />} label="Phone" value={detailModal.phone || "—"} />
+                <Detail icon={<Mail className="w-3.5 h-3.5" />} label="Email" value={detailModal.email || "—"} />
               </div>
 
               {/* Notes — venues only */}
@@ -553,6 +622,195 @@ export default function Schedules() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-[#E5E7EB] flex items-center justify-between gap-2">
+                <button
+                  onClick={() => deleteSchedule(detailModal.id || (detailModal as any)._id)}
+                  className="flex items-center gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-xl text-[12px] font-medium transition-colors border border-red-200"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setEditModal({ ...detailModal });
+                      setDetailModal(null);
+                    }}
+                    className="flex items-center gap-1.5 text-[#1E3A1E] hover:text-[#2D5016] hover:bg-[#EEF5E8] px-3.5 py-2 rounded-xl text-[12px] font-medium transition-colors border border-[#A8C88A]"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    Edit Booking
+                  </button>
+                  <button
+                    onClick={() => setDetailModal(null)}
+                    className="px-4 py-2 bg-white border border-[#E5E7EB] rounded-xl text-[12px] font-medium text-[#555] hover:bg-[#F4F5F7] transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Booking Modal */}
+      <AnimatePresence>
+        {editModal && (
+          <Modal title={`Edit Booking — ${bookingLabel(editModal)}`} onClose={() => setEditModal(null)}>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Facility *</label>
+                <select
+                  value={editModal.facilityId}
+                  onChange={e => setEditModal(s => s ? {
+                    ...s,
+                    facilityId: e.target.value,
+                    ...(isCourt(e.target.value) ? { title: "", guests: undefined, packageName: "", notes: "" } : {})
+                  } : null)}
+                  className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] bg-white"
+                >
+                  {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
+
+              {!isCourt(editModal.facilityId) && (
+                <div>
+                  <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Event Title *</label>
+                  <input
+                    value={editModal.title || ""}
+                    onChange={e => setEditModal(s => s ? { ...s, title: e.target.value } : null)}
+                    placeholder="e.g. Garcia Wedding Reception"
+                    className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">
+                    Client Name {isCourt(editModal.facilityId) ? "*" : ""}
+                  </label>
+                  <input
+                    value={editModal.clientName}
+                    onChange={e => setEditModal(s => s ? { ...s, clientName: e.target.value } : null)}
+                    className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Phone</label>
+                  <input
+                    value={editModal.phone || ""}
+                    onChange={e => setEditModal(s => s ? { ...s, phone: e.target.value } : null)}
+                    placeholder="+63 9XX XXX XXXX"
+                    className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Email</label>
+                <input
+                  type="email"
+                  value={editModal.email || ""}
+                  onChange={e => setEditModal(s => s ? { ...s, email: e.target.value } : null)}
+                  placeholder="client@example.com"
+                  className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Date *</label>
+                  <input
+                    type="date"
+                    value={editModal.date}
+                    onChange={e => setEditModal(s => s ? { ...s, date: e.target.value } : null)}
+                    className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Start</label>
+                  <input
+                    type="time"
+                    value={editModal.startTime}
+                    onChange={e => setEditModal(s => s ? { ...s, startTime: e.target.value } : null)}
+                    className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">End</label>
+                  <input
+                    type="time"
+                    value={editModal.endTime}
+                    onChange={e => setEditModal(s => s ? { ...s, endTime: e.target.value } : null)}
+                    className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                  />
+                </div>
+              </div>
+
+              {!isCourt(editModal.facilityId) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Guests</label>
+                    <input
+                      type="number"
+                      value={editModal.guests ?? ""}
+                      onChange={e => setEditModal(s => s ? { ...s, guests: e.target.value ? Number(e.target.value) : undefined } : null)}
+                      className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Package</label>
+                    <input
+                      value={editModal.packageName || ""}
+                      onChange={e => setEditModal(s => s ? { ...s, packageName: e.target.value } : null)}
+                      placeholder="e.g. Full Day"
+                      className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Status</label>
+                <select
+                  value={editModal.status}
+                  onChange={e => setEditModal(s => s ? { ...s, status: e.target.value as BookingStatus } : null)}
+                  className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] bg-white"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              {!isCourt(editModal.facilityId) && (
+                <div>
+                  <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Notes</label>
+                  <textarea
+                    rows={2}
+                    value={editModal.notes || ""}
+                    onChange={e => setEditModal(s => s ? { ...s, notes: e.target.value } : null)}
+                    placeholder="Special requests, themes, caterer info…"
+                    className="w-full border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-[#2D5016] transition-all resize-none"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={saveEdit}
+                  className="flex-1 bg-[#1E3A1E] text-white py-3 rounded-xl text-[13px] font-medium hover:bg-[#2D5016] transition-colors"
+                >
+                  Save Changes
+                </button>
+                <button onClick={() => setEditModal(null)} className="flex-1 border border-[#E5E7EB] text-[#666] py-3 rounded-xl text-[13px] font-medium hover:bg-[#F4F5F7] transition-colors">
+                  Cancel
+                </button>
               </div>
             </div>
           </Modal>

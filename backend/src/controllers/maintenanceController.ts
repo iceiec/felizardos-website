@@ -39,7 +39,9 @@ export async function createItem(req: Request, res: Response): Promise<void> {
 
 export async function updateItem(req: Request, res: Response): Promise<void> {
   try {
-    const item = await Maintenance.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+    delete updateData._id;
+    const item = await Maintenance.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });

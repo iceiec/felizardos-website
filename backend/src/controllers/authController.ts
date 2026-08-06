@@ -5,7 +5,7 @@ import { env } from "../config/env";
 
 function signToken(id: string, email: string): string {
   return jwt.sign({ id, email }, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+    expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
   });
 }
 

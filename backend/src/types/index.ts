@@ -29,6 +29,7 @@ export interface ISchedule {
   guests?: number;       // not used for basketball courts
   packageName?: string;  // not used for basketball courts
   phone: string;
+  email?: string;
   notes?: string;        // not used for basketball courts
 }
 

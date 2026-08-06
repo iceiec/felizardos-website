@@ -3,6 +3,7 @@
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
 const TOKEN_KEY = "felizardos_token";
+const AUTH_KEY = "felizardos_admin_auth";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -16,6 +17,11 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+export function clearAllAuth(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(AUTH_KEY);
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -27,11 +33,19 @@ async function request<T>(
     ...options.headers,
   };
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  } catch (_err) {
+    // Network error (backend not running, CORS, etc.)
+    // Return a failed response shape so callers handle it gracefully
+    throw new Error("Network error: Could not reach the server. Is the backend running?");
+  }
 
   if (res.status === 401) {
-    clearToken();
-    window.location.href = "/admin/login";
+    // Clear BOTH the JWT token and the admin auth flag to prevent redirect loops
+    clearAllAuth();
+    // Don't hard-redirect — just throw so the caller can handle it
     throw new Error("Session expired. Please log in again.");
   }
 

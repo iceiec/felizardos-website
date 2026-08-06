@@ -29,7 +29,7 @@ AdminSchema.methods.comparePassword = function (candidate: string): Promise<bool
 // Never send password in JSON responses
 AdminSchema.set("toJSON", {
   transform: (_doc, ret) => {
-    delete ret.password;
+    delete (ret as any).password;
     return ret;
   },
 });

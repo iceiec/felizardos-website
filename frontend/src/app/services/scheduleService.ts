@@ -14,8 +14,12 @@ export const scheduleService = {
     return api.get(`/schedules?date=${date}`);
   },
 
-  create(data: Omit<Schedule, "_id" | "id" | "createdAt" | "updatedAt">): Promise<ApiResponse<Schedule>> {
-    return api.post("/schedules", data);
+  create(schedule: Omit<Schedule, "id">): Promise<ApiResponse<Schedule>> {
+    return api.post("/schedules", schedule);
+  },
+
+  createInquiry(schedule: Omit<Schedule, "id">): Promise<ApiResponse<Schedule>> {
+    return api.post("/schedules/inquiry", schedule);
   },
 
   update(id: string, data: Partial<Schedule>): Promise<ApiResponse<Schedule>> {

@@ -1,38 +1,63 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Save, Check, RotateCcw, Eye, EyeOff, MapPin, Phone, Mail, Clock, Sparkles } from "lucide-react";
-import { DEFAULT_SITE_CONTENT, type SiteContent } from "../../utils/adminData";
+import { type SiteContent } from "../../utils/adminData";
+import { contentService } from "../../services/contentService";
 
-const STORAGE_KEY = "felizardos_site_content";
-
-function loadContent(): SiteContent {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? { ...DEFAULT_SITE_CONTENT, ...JSON.parse(stored) } : { ...DEFAULT_SITE_CONTENT };
-  } catch {
-    return { ...DEFAULT_SITE_CONTENT };
-  }
-}
-
-function saveContent(content: SiteContent) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(content));
-}
+// Provide some default fallback just in case the backend hasn't been seeded yet
+const FALLBACK_CONTENT: SiteContent = {
+  heroTagline: "Premium Event Venue · Philippines",
+  heroTitle: "Where Every Moment Becomes",
+  heroHighlight: "A Memory",
+  heroSubtitle:
+    "Two stunning venues — an elegant Pavilion and a resort-style Swimming Pool — crafted for celebrations that deserve to be remembered.",
+  contactAddress: "Felizardo's Event Place, Batangas, Philippines",
+  contactPhone: "+63 912 345 6789",
+  contactEmail: "events@felizardos.com",
+  contactHours: "Monday – Saturday, 9:00 AM – 6:00 PM",
+  pavilionDescription:
+    "An open-air masterpiece embraced by lush greenery and golden natural light. The Pavilion transforms any occasion into an elegant affair — from intimate garden weddings to grand corporate galas — accommodating up to 200 guests in effortless style.",
+  poolDescription:
+    "Dive into a tropical paradise. Our resort-style swimming pool turns any gathering into a sun-soaked celebration — perfect for pool parties, children's birthdays, team-building retreats, and intimate sundowner events.",
+};
 
 type Section = "hero" | "contact" | "venues";
 
 export default function Content() {
-  const [content, setContent] = useState<SiteContent>(loadContent);
+  const [content, setContent] = useState<SiteContent>(FALLBACK_CONTENT);
   const [activeSection, setActiveSection] = useState<Section>("hero");
   const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState(true);
 
+  useEffect(() => {
+    fetchContent();
+  }, []);
+
+  const fetchContent = async () => {
+    try {
+      const res = await contentService.get();
+      if (res.success && res.data) {
+        setContent({ ...FALLBACK_CONTENT, ...res.data });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const update = (key: keyof SiteContent, val: string) =>
     setContent(c => ({ ...c, [key]: val }));
 
-  const handleSave = () => {
-    saveContent(content);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const handleSave = async () => {
+    try {
+      const res = await contentService.update(content);
+      if (res.success && res.data) {
+        setContent(res.data);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleReset = (section: Section) => {
@@ -40,24 +65,24 @@ export default function Content() {
     if (section === "hero") {
       setContent(c => ({
         ...c,
-        heroTagline: DEFAULT_SITE_CONTENT.heroTagline,
-        heroTitle: DEFAULT_SITE_CONTENT.heroTitle,
-        heroHighlight: DEFAULT_SITE_CONTENT.heroHighlight,
-        heroSubtitle: DEFAULT_SITE_CONTENT.heroSubtitle,
+        heroTagline: FALLBACK_CONTENT.heroTagline,
+        heroTitle: FALLBACK_CONTENT.heroTitle,
+        heroHighlight: FALLBACK_CONTENT.heroHighlight,
+        heroSubtitle: FALLBACK_CONTENT.heroSubtitle,
       }));
     } else if (section === "contact") {
       setContent(c => ({
         ...c,
-        contactAddress: DEFAULT_SITE_CONTENT.contactAddress,
-        contactPhone: DEFAULT_SITE_CONTENT.contactPhone,
-        contactEmail: DEFAULT_SITE_CONTENT.contactEmail,
-        contactHours: DEFAULT_SITE_CONTENT.contactHours,
+        contactAddress: FALLBACK_CONTENT.contactAddress,
+        contactPhone: FALLBACK_CONTENT.contactPhone,
+        contactEmail: FALLBACK_CONTENT.contactEmail,
+        contactHours: FALLBACK_CONTENT.contactHours,
       }));
     } else {
       setContent(c => ({
         ...c,
-        pavilionDescription: DEFAULT_SITE_CONTENT.pavilionDescription,
-        poolDescription: DEFAULT_SITE_CONTENT.poolDescription,
+        pavilionDescription: FALLBACK_CONTENT.pavilionDescription,
+        poolDescription: FALLBACK_CONTENT.poolDescription,
       }));
     }
   };
@@ -133,7 +158,7 @@ export default function Content() {
             <Section title="Hero Section" icon={<Sparkles className="w-4 h-4" />} onReset={() => handleReset("hero")}>
               <Field label="Tagline (small text above heading)">
                 <input
-                  value={content.heroTagline}
+                  value={content.heroTagline || ""}
                   onChange={e => update("heroTagline", e.target.value)}
                   className={INPUT_CLS}
                   placeholder="Premium Event Venue · Philippines"
@@ -141,7 +166,7 @@ export default function Content() {
               </Field>
               <Field label="Main Heading">
                 <input
-                  value={content.heroTitle}
+                  value={content.heroTitle || ""}
                   onChange={e => update("heroTitle", e.target.value)}
                   className={INPUT_CLS}
                   placeholder="Where Every Moment Becomes"
@@ -150,7 +175,7 @@ export default function Content() {
               </Field>
               <Field label="Highlighted Text (green accent)">
                 <input
-                  value={content.heroHighlight}
+                  value={content.heroHighlight || ""}
                   onChange={e => update("heroHighlight", e.target.value)}
                   className={INPUT_CLS}
                   placeholder="A Memory"
@@ -159,7 +184,7 @@ export default function Content() {
               <Field label="Subtitle / Description">
                 <textarea
                   rows={3}
-                  value={content.heroSubtitle}
+                  value={content.heroSubtitle || ""}
                   onChange={e => update("heroSubtitle", e.target.value)}
                   className={INPUT_CLS + " resize-none"}
                 />
@@ -173,7 +198,7 @@ export default function Content() {
                 <div className="relative">
                   <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-[#ccc]" />
                   <input
-                    value={content.contactAddress}
+                    value={content.contactAddress || ""}
                     onChange={e => update("contactAddress", e.target.value)}
                     className={INPUT_CLS + " pl-10"}
                   />
@@ -183,7 +208,7 @@ export default function Content() {
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-3 w-4 h-4 text-[#ccc]" />
                   <input
-                    value={content.contactPhone}
+                    value={content.contactPhone || ""}
                     onChange={e => update("contactPhone", e.target.value)}
                     className={INPUT_CLS + " pl-10"}
                     placeholder="+63 912 345 6789"
@@ -194,7 +219,7 @@ export default function Content() {
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-3 w-4 h-4 text-[#ccc]" />
                   <input
-                    value={content.contactEmail}
+                    value={content.contactEmail || ""}
                     onChange={e => update("contactEmail", e.target.value)}
                     className={INPUT_CLS + " pl-10"}
                     placeholder="events@felizardos.com"
@@ -205,7 +230,7 @@ export default function Content() {
                 <div className="relative">
                   <Clock className="absolute left-3.5 top-3 w-4 h-4 text-[#ccc]" />
                   <input
-                    value={content.contactHours}
+                    value={content.contactHours || ""}
                     onChange={e => update("contactHours", e.target.value)}
                     className={INPUT_CLS + " pl-10"}
                     placeholder="Monday – Saturday, 9:00 AM – 6:00 PM"
@@ -220,7 +245,7 @@ export default function Content() {
               <Field label="The Pavilion — Description">
                 <textarea
                   rows={4}
-                  value={content.pavilionDescription}
+                  value={content.pavilionDescription || ""}
                   onChange={e => update("pavilionDescription", e.target.value)}
                   className={INPUT_CLS + " resize-none"}
                 />
@@ -229,7 +254,7 @@ export default function Content() {
               <Field label="Swimming Pool — Description">
                 <textarea
                   rows={4}
-                  value={content.poolDescription}
+                  value={content.poolDescription || ""}
                   onChange={e => update("poolDescription", e.target.value)}
                   className={INPUT_CLS + " resize-none"}
                 />

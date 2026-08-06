@@ -13,8 +13,8 @@ React 18 · TypeScript · Vite · Tailwind CSS v4 · react-router v7
 5. [Environment Variables](#environment-variables)
 6. [How Routing Works](#how-routing-works)
 7. [How Authentication Works](#how-authentication-works)
-8. [Mock Data vs Real API](#mock-data-vs-real-api)
-9. [Connecting to the Backend](#connecting-to-the-backend)
+8. [Data Flow & API Services](#data-flow--api-services)
+9. [API Configuration](#api-configuration)
 10. [Adding a New Admin Page](#adding-a-new-admin-page)
 11. [Styling Guide](#styling-guide)
 12. [Building for Production](#building-for-production)
@@ -188,98 +188,47 @@ useEffect(() => {
 
 ---
 
-## Mock Data vs Real API
+## Data Flow & API Services
 
-The app currently stores all data in **localStorage** using initial mock arrays:
+The application communicates with the backend API using Axios-based service functions located in `src/app/services/`.
 
-```
-src/app/utils/adminData.ts    ← INITIAL_FACILITIES, INITIAL_SCHEDULES, etc.
-```
-
-Each admin page does:
-```ts
-const [facilities, setFacilities] = useState<Facility[]>(INITIAL_FACILITIES);
-```
-
-This means data resets on hard refresh. It is intentional for the prototype phase. The `src/app/services/` folder contains the prepared service functions ready to swap in.
-
----
-
-## Connecting to the Backend
-
-Once `backend/` is running (see `backend/GUIDE.md`), follow these steps to connect each page:
-
-### Step 1 — Set the API URL
-
-Add to `.env`:
-```env
-VITE_API_URL=http://localhost:5000/api
-```
-
-### Step 2 — Wire up authentication
-
-Open `src/app/context/AdminAuth.tsx`. Change the `login` function from:
-```ts
-// Mock check
-if (email === "admin@felizardos.com" && password === "felizardos2025") {
-  setIsAuthenticated(true);
-  localStorage.setItem("felizardos_admin_auth", "true");
-  return true;
-}
-```
-To:
-```ts
-import { authService } from "../services/authService";
-
-const result = await authService.login(email, password);
-if (result.success) {
-  localStorage.setItem("felizardos_token", result.data.token);
-  setIsAuthenticated(true);
-  return true;
-}
-return false;
-```
-
-### Step 3 — Swap one page at a time
-
-**Example: Facilities.tsx**
-
-Before (mock):
-```ts
-const [facilities, setFacilities] = useState<Facility[]>(INITIAL_FACILITIES);
-```
-
-After (API):
+Each page fetches its required data on mount. For example:
 ```ts
 const [facilities, setFacilities] = useState<Facility[]>([]);
-const [loading, setLoading] = useState(true);
 
 useEffect(() => {
   facilityService.getAll()
-    .then(res => setFacilities(res.data))
-    .finally(() => setLoading(false));
+    .then(res => {
+      if (res.success && res.data) setFacilities(res.data);
+    })
+    .catch(console.error);
 }, []);
 ```
 
-For create/update/delete, call the service inside the existing handler functions and refetch (or update state optimistically).
+The services available are:
+- `authService.ts`: login(), logout()
+- `facilityService.ts`: CRUD for facilities
+- `scheduleService.ts`: CRUD for schedules
+- `maintenanceService.ts`: CRUD for maintenance
+- `contentService.ts`: CMS logic for the landing page content
 
-### Step 4 — Repeat for each resource
+---
 
-| Page | Service to use |
-|---|---|
-| `Facilities.tsx` | `facilityService` |
-| `Schedules.tsx` | `scheduleService` |
-| `Maintenance.tsx` | `maintenanceService` |
-| `Content.tsx` | `contentService` |
+## API Configuration
 
-### Step 5 — Public pages
+To configure the API connection, ensure you have a `.env` file at the project root:
 
-`Home.tsx`, `PavilionPage.tsx`, `PoolPage.tsx` read from `localStorage` for site content. Replace with:
+```env
+# URL of your Express backend
+VITE_API_URL=http://localhost:5000/api
+```
+
+In the code, this is read as:
 ```ts
-useEffect(() => {
-  contentService.get().then(res => setSiteContent(res.data));
-}, []);
+const BASE_URL = import.meta.env.VITE_API_URL;
 ```
+
+The base API instance (`src/app/services/api.ts`) automatically injects the JWT token stored in `localStorage` into the `Authorization` header for all requests to protected endpoints.
 
 ---
 

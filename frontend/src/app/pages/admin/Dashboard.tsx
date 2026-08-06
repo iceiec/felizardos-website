@@ -1,18 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { motion } from "motion/react";
 import {
   BarChart, Bar, AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
   Building2, CalendarDays, Wrench, TrendingUp,
   CheckCircle2, ArrowRight, FileBarChart, ChevronDown,
 } from "lucide-react";
 import {
-  INITIAL_FACILITIES, INITIAL_SCHEDULES, INITIAL_MAINTENANCE,
-  FACILITY_COLORS,
+  FACILITY_COLORS, type Facility, type Schedule, type MaintenanceItem
 } from "../../utils/adminData";
+import { facilityService } from "../../services/facilityService";
+import { scheduleService } from "../../services/scheduleService";
+import { maintenanceService } from "../../services/maintenanceService";
 
 // ─── Revenue lookup by package name ──────────────────────────────────────────
 const PACKAGE_REVENUE: Record<string, number> = {
@@ -33,18 +35,7 @@ function getRevenue(s: { facilityId: string; packageName?: string }): number {
 // ─── Month labels ─────────────────────────────────────────────────────────────
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// Plausible synthetic bookings per month (Philippines: peak Dec/Jan/summer)
-const SYNTHETIC_BOOKINGS = [9, 6, 8, 7, 10, 12, 15, 13, 9, 8, 11, 17];
-const SYNTHETIC_REVENUE   = [230000, 148000, 192000, 175000, 248000, 298000, 375000, 320000, 215000, 188000, 268000, 425000];
-// Breakdown by facility (approximate % share per facility)
-const FACILITY_SHARE: Record<string, number[]> = {
-  pavilion: [0.40, 0.38, 0.42, 0.40, 0.45, 0.44, 0.42, 0.43, 0.41, 0.40, 0.43, 0.44],
-  pool:     [0.30, 0.28, 0.30, 0.32, 0.30, 0.35, 0.38, 0.36, 0.32, 0.30, 0.32, 0.30],
-  andoy:    [0.18, 0.20, 0.16, 0.16, 0.15, 0.13, 0.12, 0.13, 0.16, 0.18, 0.16, 0.15],
-  juliet:   [0.12, 0.14, 0.12, 0.12, 0.10, 0.08, 0.08, 0.08, 0.11, 0.12, 0.09, 0.11],
-};
-
-function buildMonthlyData(year: number, facility: string) {
+function buildMonthlyData(year: number, facility: string, schedules: Schedule[]) {
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
@@ -53,25 +44,14 @@ function buildMonthlyData(year: number, facility: string) {
     const isFuture = year > currentYear || (year === currentYear && i > currentMonth);
 
     // Real schedules for this month/year
-    const real = INITIAL_SCHEDULES.filter(s => {
+    const real = schedules.filter(s => {
       if (facility !== "all" && s.facilityId !== facility) return false;
       const d = new Date(s.date);
       return d.getFullYear() === year && d.getMonth() === i;
     });
 
-    const share = facility === "all" ? 1 : (FACILITY_SHARE[facility]?.[i] ?? 0.25);
-
-    const bookings = isFuture
-      ? 0
-      : real.length > 0
-      ? real.length
-      : Math.round(SYNTHETIC_BOOKINGS[i] * share);
-
-    const revenue = isFuture
-      ? 0
-      : real.length > 0
-      ? real.reduce((s, sc) => s + getRevenue(sc), 0)
-      : Math.round(SYNTHETIC_REVENUE[i] * share);
+    const bookings = isFuture ? 0 : real.length;
+    const revenue = isFuture ? 0 : real.reduce((s, sc) => s + getRevenue(sc), 0);
 
     return { month, bookings, revenue };
   });
@@ -84,14 +64,6 @@ const todayStr = fmt(today);
 
 const bookingLabel = (s: { title?: string; clientName: string }) =>
   s.title?.trim() || s.clientName;
-
-const facilityById = Object.fromEntries(INITIAL_FACILITIES.map(f => [f.id, f]));
-
-const upcomingBookings = INITIAL_SCHEDULES.filter(
-  s => s.date >= todayStr && s.status !== "cancelled" && s.status !== "completed"
-).sort((a, b) => a.date.localeCompare(b.date));
-
-const pendingMaintenance = INITIAL_MAINTENANCE.filter(m => m.status !== "completed");
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -144,16 +116,46 @@ export default function Dashboard() {
   const [analyticsYear, setAnalyticsYear] = useState(currentYear);
   const [analyticsFacility, setAnalyticsFacility] = useState("all");
 
-  const monthlyData = buildMonthlyData(analyticsYear, analyticsFacility);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [maintenance, setMaintenance] = useState<MaintenanceItem[]>([]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [fRes, sRes, mRes] = await Promise.all([
+        facilityService.getAll(),
+        scheduleService.getAll(),
+        maintenanceService.getAll()
+      ]);
+      if (fRes.success && fRes.data) setFacilities(fRes.data);
+      if (sRes.success && sRes.data) setSchedules(sRes.data);
+      if (mRes.success && mRes.data) setMaintenance(mRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const facilityById = Object.fromEntries(facilities.map(f => [f.id, f]));
+  const upcomingBookings = schedules.filter(
+    s => s.date >= todayStr && s.status !== "cancelled" && s.status !== "completed"
+  ).sort((a, b) => a.date.localeCompare(b.date));
+  
+  const pendingMaintenance = maintenance.filter(m => m.status !== "completed");
+
+  const monthlyData = buildMonthlyData(analyticsYear, analyticsFacility, schedules);
   const totalBookings = monthlyData.reduce((s, d) => s + d.bookings, 0);
   const totalRevenue  = monthlyData.reduce((s, d) => s + d.revenue, 0);
-  const peakMonth     = monthlyData.reduce((a, b) => b.bookings > a.bookings ? b : a, monthlyData[0]);
+  const peakMonth     = monthlyData.length > 0 ? monthlyData.reduce((a, b) => b.bookings > a.bookings ? b : a, monthlyData[0]) : { month: "-", bookings: 0 };
 
   const STAT_CARDS = [
     {
       label: "Total Facilities",
-      value: INITIAL_FACILITIES.length,
-      sub: `${INITIAL_FACILITIES.filter(f => f.status === "active").length} active`,
+      value: facilities.length,
+      sub: `${facilities.filter(f => f.status === "active").length} active`,
       Icon: Building2, color: "bg-[#EEF5E8] text-[#2D5016]", to: "/admin/facilities",
     },
     {
@@ -170,7 +172,7 @@ export default function Dashboard() {
     },
     {
       label: "Events This Month",
-      value: INITIAL_SCHEDULES.filter(s => {
+      value: schedules.filter(s => {
         const d = new Date(s.date);
         return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
       }).length,
@@ -236,7 +238,7 @@ export default function Dashboard() {
                 className="appearance-none border border-[#E5E7EB] rounded-xl px-3.5 py-2 pr-8 text-[13px] focus:outline-none focus:border-[#2D5016] bg-white text-[#444]"
               >
                 <option value="all">All Facilities</option>
-                {INITIAL_FACILITIES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
               <ChevronDown className="absolute right-2.5 top-2.5 w-3.5 h-3.5 text-[#aaa] pointer-events-none" />
             </div>
@@ -337,8 +339,8 @@ export default function Dashboard() {
             <h4 className="font-semibold text-[15px] text-[#111]">Bookings by Facility · {analyticsYear}</h4>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {INITIAL_FACILITIES.map(f => {
-              const facilityData = buildMonthlyData(analyticsYear, f.id);
+            {facilities.map(f => {
+              const facilityData = buildMonthlyData(analyticsYear, f.id, schedules);
               const count = facilityData.reduce((s, d) => s + d.bookings, 0);
               const rev = facilityData.reduce((s, d) => s + d.revenue, 0);
               const pct = totalBookings > 0 ? Math.round((count / totalBookings) * 100) : 0;
@@ -379,7 +381,7 @@ export default function Dashboard() {
             <Link to="/admin/facilities" className="text-[12px] text-[#2D5016] hover:underline flex items-center gap-1">Manage <ArrowRight className="w-3 h-3" /></Link>
           </div>
           <div className="space-y-3">
-            {INITIAL_FACILITIES.map(f => (
+            {facilities.map(f => (
               <div key={f.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F8F9FA] transition-colors">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-[11px] font-bold" style={{ backgroundColor: FACILITY_COLORS[f.id] }}>
                   {f.name.split(" ").map(w => w[0]).join("").slice(0, 2)}

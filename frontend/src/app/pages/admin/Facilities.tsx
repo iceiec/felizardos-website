@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, X, Check, Edit2, Eye, EyeOff, Users, ToggleLeft, ToggleRight, PhilippinePeso } from "lucide-react";
-import { INITIAL_FACILITIES, FACILITY_COLORS, type Facility, type FacilityStatus } from "../../utils/adminData";
+import { Plus, X, Check, Edit2, Trash2, Eye, EyeOff, Users, ToggleLeft, ToggleRight, Banknote } from "lucide-react";
+import { FACILITY_COLORS, type Facility, type FacilityStatus } from "../../utils/adminData";
+import { facilityService } from "../../services/facilityService";
 
 const formatPeso = (n: number) => "₱" + n.toLocaleString("en-PH");
 
@@ -32,42 +33,100 @@ const EMPTY_FACILITY: Omit<Facility, "id"> = {
 const FACILITY_TYPES = ["Event Hall", "Recreation", "Basketball Court", "Function Room", "Other"];
 
 export default function Facilities() {
-  const [facilities, setFacilities] = useState<Facility[]>(INITIAL_FACILITIES);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [editTarget, setEditTarget] = useState<Facility | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [newFacility, setNewFacility] = useState<Omit<Facility, "id">>(EMPTY_FACILITY);
   const [amenityInput, setAmenityInput] = useState("");
   const [saved, setSaved] = useState<string | null>(null);
 
+  useEffect(() => {
+    fetchFacilities();
+  }, []);
+
+  const fetchFacilities = async () => {
+    try {
+      const res = await facilityService.getAll();
+      if (res.success && res.data) {
+        setFacilities(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const flash = (id: string) => {
     setSaved(id);
     setTimeout(() => setSaved(null), 2000);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editTarget) return;
-    setFacilities(f => f.map(x => x.id === editTarget.id ? editTarget : x));
-    flash(editTarget.id);
-    setEditTarget(null);
+    try {
+      const res = await facilityService.update(editTarget.id, editTarget);
+      if (res.success && res.data) {
+        setFacilities(f => f.map(x => x.id === editTarget.id ? res.data! : x));
+        flash(editTarget.id);
+        setEditTarget(null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const toggleStatus = (id: string) => {
-    setFacilities(f => f.map(x =>
-      x.id === id ? { ...x, status: x.status === "active" ? "maintenance" : "active" } : x
-    ));
+  const deleteFacility = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this facility?")) return;
+    try {
+      const res = await facilityService.delete(id);
+      if (res.success) {
+        setFacilities(f => f.filter(x => x.id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const toggleLanding = (id: string) => {
-    setFacilities(f => f.map(x => x.id === id ? { ...x, showOnLanding: !x.showOnLanding } : x));
+  const toggleStatus = async (id: string) => {
+    const facility = facilities.find(f => f.id === id);
+    if (!facility) return;
+    const newStatus = facility.status === "active" ? "maintenance" : "active";
+    try {
+      const res = await facilityService.toggleStatus(id, newStatus);
+      if (res.success && res.data) {
+        setFacilities(f => f.map(x => (x.id === id ? res.data! : x)));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const addFacility = () => {
-    const id = newFacility.name.toLowerCase().replace(/\s+/g, "-");
-    setFacilities(f => [...f, { ...newFacility, id }]);
-    setNewFacility({ ...EMPTY_FACILITY });
-    setAmenityInput("");
-    setIsAdding(false);
-    flash(id);
+  const toggleLanding = async (id: string) => {
+    const facility = facilities.find(f => f.id === id);
+    if (!facility) return;
+    try {
+      const res = await facilityService.toggleLanding(id, !facility.showOnLanding);
+      if (res.success && res.data) {
+        setFacilities(f => f.map(x => (x.id === id ? res.data! : x)));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const addFacility = async () => {
+    try {
+      // API expects id to be generated on backend or derived from name, but type Omit<Facility, "id"> is expected.
+      const res = await facilityService.create({ ...newFacility, id: newFacility.name.toLowerCase().replace(/\s+/g, "-") } as any);
+      if (res.success && res.data) {
+        setFacilities(f => [...f, res.data!]);
+        setNewFacility({ ...EMPTY_FACILITY });
+        setAmenityInput("");
+        setIsAdding(false);
+        flash(res.data.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const addAmenity = (target: "new" | "edit") => {
@@ -133,8 +192,16 @@ export default function Facilities() {
                   <button
                     onClick={() => setEditTarget({ ...f })}
                     className="w-8 h-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#888] hover:text-[#1E3A1E] hover:border-[#A8C88A] transition-all"
+                    title="Edit Facility"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => deleteFacility(f.id)}
+                    className="w-8 h-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#888] hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all"
+                    title="Delete Facility"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -337,7 +404,7 @@ function FacilityForm({
       <div>
         <label className="text-[11px] text-[#888] uppercase tracking-wide mb-1.5 block">Full Rental Price (₱)</label>
         <div className="relative">
-          <PhilippinePeso className="absolute left-3.5 top-3 w-4 h-4 text-[#ccc]" />
+          <Banknote className="absolute left-3.5 top-3 w-4 h-4 text-[#ccc]" />
           <input
             type="number"
             value={data.rentalPrice}

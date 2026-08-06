@@ -1,10 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { Printer, ChevronDown, CalendarDays, TrendingUp, Users, Building2, CheckCircle2 } from "lucide-react";
+import { Printer, ChevronDown, CalendarDays, TrendingUp, Users, CheckCircle2 } from "lucide-react";
 import {
-  INITIAL_SCHEDULES, INITIAL_FACILITIES, INITIAL_MAINTENANCE,
-  FACILITY_COLORS, type Schedule,
+  FACILITY_COLORS, type Schedule, type Facility, type MaintenanceItem
 } from "../../utils/adminData";
+import { facilityService } from "../../services/facilityService";
+import { scheduleService } from "../../services/scheduleService";
+import { maintenanceService } from "../../services/maintenanceService";
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 const PACKAGE_REVENUE: Record<string, number> = {
@@ -20,7 +22,6 @@ const today = new Date();
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const fmtDate = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const bookingLabel = (s: Schedule) => s.title?.trim() || s.clientName;
-const facilityById = Object.fromEntries(INITIAL_FACILITIES.map(f => [f.id, f]));
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -30,64 +31,6 @@ function formatDateDisplay(dateStr: string) {
   });
 }
 const formatPeso = (n: number) => "₱" + n.toLocaleString("en-PH");
-
-// ─── Synthetic historical bookings ───────────────────────────────────────────
-// Adds plausible past bookings so yearly reports look realistic.
-// These are display-only; real INITIAL_SCHEDULES data takes precedence for the current month.
-const SYNTHETIC_PAST_SCHEDULES: Schedule[] = (() => {
-  const out: Schedule[] = [];
-  let id = 1000;
-  const year = today.getFullYear();
-  const cm = today.getMonth();
-
-  const patterns: [string, string, string, string, number][] = [
-    // [facilityId, clientName, title?, pkg, guests]
-    ["pavilion", "Reyes Family", "Garcia-Reyes Wedding", "Premium", 180],
-    ["pool",     "Sunrise Corp", "Team Building Day",     "Tide",    90],
-    ["pavilion", "Dela Cruz",    "50th Anniversary",      "Full Day", 130],
-    ["andoy",    "Brgy. Malaya", "",                      "",        0],
-    ["pool",     "Bautista Kids","Birthday Splash Party", "Wave",    55],
-    ["juliet",   "Star Athletics","",                     "",        0],
-    ["pavilion", "Santos Clan",  "Debut Celebration",    "Full Day", 145],
-    ["pool",     "Ramos Corp",   "Year-End Pool Party",  "Tide",    100],
-  ];
-
-  for (let m = 0; m < cm; m++) {
-    const count = 2 + Math.floor(Math.random() * 4);
-    for (let k = 0; k < count; k++) {
-      const p = patterns[(m * 3 + k) % patterns.length];
-      const day = 3 + (k * 7) % 25;
-      const date = `${year}-${pad2(m + 1)}-${pad2(day)}`;
-      out.push({
-        id: id++,
-        facilityId: p[0],
-        clientName: p[1],
-        title: p[2] || undefined,
-        date,
-        startTime: "09:00",
-        endTime: "17:00",
-        status: "completed",
-        guests: p[4] || undefined,
-        packageName: p[3] || undefined,
-        phone: "",
-        notes: undefined,
-      });
-    }
-  }
-  return out;
-})();
-
-const ALL_SCHEDULES = [...INITIAL_SCHEDULES, ...SYNTHETIC_PAST_SCHEDULES];
-
-// ─── Filter helpers ───────────────────────────────────────────────────────────
-function filterSchedules(period: "daily" | "monthly" | "yearly", date: string, month: string, year: number, facility: string) {
-  return ALL_SCHEDULES.filter(s => {
-    if (facility !== "all" && s.facilityId !== facility) return false;
-    if (period === "daily") return s.date === date;
-    if (period === "monthly") return s.date.startsWith(month);
-    return s.date.startsWith(String(year));
-  });
-}
 
 type Period = "daily" | "monthly" | "yearly";
 
@@ -110,10 +53,42 @@ export default function Reports() {
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const schedules = filterSchedules(period, selectedDate, selectedMonth, selectedYear, facility);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [schedulesData, setSchedulesData] = useState<Schedule[]>([]);
+  const [maintenanceData, setMaintenanceData] = useState<MaintenanceItem[]>([]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [fRes, sRes, mRes] = await Promise.all([
+        facilityService.getAll(),
+        scheduleService.getAll(),
+        maintenanceService.getAll()
+      ]);
+      if (fRes.success && fRes.data) setFacilities(fRes.data);
+      if (sRes.success && sRes.data) setSchedulesData(sRes.data);
+      if (mRes.success && mRes.data) setMaintenanceData(mRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const ALL_SCHEDULES = [...schedulesData];
+  const facilityById = Object.fromEntries(facilities.map(f => [f.id, f]));
+
+  const schedules = ALL_SCHEDULES.filter(s => {
+    if (facility !== "all" && s.facilityId !== facility) return false;
+    if (period === "daily") return s.date === selectedDate;
+    if (period === "monthly") return s.date.startsWith(selectedMonth);
+    return s.date.startsWith(String(selectedYear));
+  });
+
   const revenue = schedules.reduce((s, sc) => s + getRevenue(sc), 0);
   const confirmed = schedules.filter(s => s.status === "confirmed").length;
-  const completed = schedules.filter(s => s.status === "completed").length;
+  const _completed = schedules.filter(s => s.status === "completed").length;
   const pending = schedules.filter(s => s.status === "pending").length;
 
   // For yearly: build per-month summary
@@ -123,7 +98,7 @@ export default function Reports() {
   });
 
   // Maintenance for the report period
-  const maintenance = INITIAL_MAINTENANCE.filter(m => {
+  const maintenance = maintenanceData.filter(m => {
     if (facility !== "all" && m.facilityId !== facility) return false;
     if (period === "daily") return m.scheduledDate === selectedDate;
     if (period === "monthly") return m.scheduledDate.startsWith(selectedMonth);
@@ -257,7 +232,7 @@ export default function Reports() {
                   className="appearance-none border border-[#E5E7EB] rounded-xl px-3.5 py-2 pr-8 text-[13px] focus:outline-none focus:border-[#2D5016] bg-white"
                 >
                   <option value="all">All Facilities</option>
-                  {INITIAL_FACILITIES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2.5 top-2.5 w-3.5 h-3.5 text-[#aaa] pointer-events-none" />
               </div>
@@ -318,7 +293,7 @@ export default function Reports() {
               <div>
                 <h2 className="text-[11px] text-[#aaa] uppercase tracking-wide mb-4">Breakdown by Facility</h2>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {INITIAL_FACILITIES.map(f => {
+                  {facilities.map(f => {
                     const fs = schedules.filter(s => s.facilityId === f.id);
                     const fr = fs.reduce((a, b) => a + getRevenue(b), 0);
                     return (

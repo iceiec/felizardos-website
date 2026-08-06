@@ -11,7 +11,10 @@ import { protect } from "../middleware/authMiddleware";
 
 const router = Router();
 
-// All schedule routes require admin auth
+// Public route for inquiries
+router.post("/inquiry", createSchedule);
+
+// All other schedule routes require admin auth
 router.use(protect);
 
 // GET /api/schedules?facilityId=pavilion&date=2025-09-15
