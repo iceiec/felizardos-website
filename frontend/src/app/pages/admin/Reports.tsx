@@ -37,9 +37,26 @@ type Period = "daily" | "monthly" | "yearly";
 // ─── Print CSS injected at mount ─────────────────────────────────────────────
 const PRINT_STYLE = `
 @media print {
-  body > * { display: none !important; }
-  #felizardos-report-root { display: block !important; position: fixed; inset: 0; z-index: 99999; background: white; overflow: auto; }
-  #felizardos-report-root .no-print { display: none !important; }
+  body, html, #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #felizardos-report-root, #felizardos-report-root * {
+    visibility: visible;
+  }
+  #felizardos-report-root {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  .no-print, .no-print * {
+    display: none !important;
+  }
   @page { size: A4 portrait; margin: 15mm 18mm; }
 }
 `;
