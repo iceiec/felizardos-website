@@ -362,6 +362,45 @@ Delete a maintenance task.
 
 ---
 
+## Admin Settings
+
+### GET `/api/settings`
+**Protected** — Returns current admin settings.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "venueName": "Felizardo's Event Place",
+    "address": "Felizardo's Event Place, Batangas, Philippines",
+    "phone": "+63 912 345 6789",
+    "email": "events@felizardos.com",
+    "hours": "Monday – Saturday, 9:00 AM – 6:00 PM",
+    "notifyNewBooking": true,
+    "notifyMaintenance": true,
+    "notifyPayment": false,
+    "updatedAt": "..."
+  }
+}
+```
+
+---
+
+### PUT `/api/settings` 🔒
+**Protected** — Update admin settings. Send only the fields you want to change.
+
+**Request body (partial example):**
+```json
+{
+  "venueName": "Felizardo's Event Place",
+  "notifyPayment": true
+}
+```
+
+---
+
 ## Error Codes
 
 | Code | Meaning |
@@ -398,6 +437,6 @@ Delete a maintenance task.
 | PATCH | `/api/maintenance/:id/status` 🔒 | Update task status |
 | DELETE | `/api/maintenance/:id` 🔒 | Delete task |
 | GET | `/api/content` | Get site content (public) |
-| PUT | `/api/content` 🔒 | Update site content |
-
+| PUT | `/api/content` 🔒 | Update site content || GET | `/api/settings` 🔒 | Get admin settings |
+| PUT | `/api/settings` 🔒 | Update admin settings |
 🔒 = requires `Authorization: Bearer <token>` header

@@ -56,6 +56,17 @@ export interface ISiteContent {
   poolDescription: string;
 }
 
+export interface IAdminSettings {
+  venueName: string;
+  address: string;
+  phone: string;
+  email: string;
+  hours: string;
+  notifyNewBooking: boolean;
+  notifyMaintenance: boolean;
+  notifyPayment: boolean;
+}
+
 export interface IAdmin {
   email: string;
   password: string;

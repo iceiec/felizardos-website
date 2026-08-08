@@ -130,6 +130,30 @@ npm run dev
 
 ---
 
+## Admin Backend Status
+
+The admin UI is mostly wired to the backend API and works for the following live operations:
+
+- **Admin login:** `POST /api/auth/login` authenticates the admin and returns a JWT.
+- **Facilities:** `GET /api/facilities`, `POST /api/facilities`, `PUT /api/facilities/:id`, `PATCH /api/facilities/:id/status`, `PATCH /api/facilities/:id/landing`, and `DELETE /api/facilities/:id` are used by `/admin/facilities`.
+- **Schedules:** `/admin/schedules` uses `GET /api/schedules`, `POST /api/schedules`, `PUT /api/schedules/:id`, `PATCH /api/schedules/:id/status`, and `DELETE /api/schedules/:id`.
+- **Maintenance:** `/admin/maintenance` uses `GET /api/maintenance`, `POST /api/maintenance`, `PUT /api/maintenance/:id`, `PATCH /api/maintenance/:id/status`, and `DELETE /api/maintenance/:id`.
+- **Content management:** `/admin/content` uses public `GET /api/content` and protected `PUT /api/content`.
+- **Dashboard & Reports:** `/admin` and `/admin/reports` fetch live backend data for facilities, schedules, and maintenance.
+- **Settings:** `/admin/settings` now persists venue configuration and notification preferences through the backend via `GET /api/settings` and `PUT /api/settings`.
+
+### Notes
+
+- The backend protects admin write routes with JWT auth. The frontend stores the token in `localStorage` and attaches it automatically in `src/app/services/api.ts`.
+- The admin username is `admin@felizardos.com` and password is `felizardos2025`.
+- The `/admin/settings` page now saves settings to the database instead of local-only browser storage.
+- `src/app/utils/adminData.ts` now exports live default admin and site content values used as initial fallbacks when the backend is unavailable.
+- Most admin pages now use backend services when `VITE_API_URL` is configured.
+
+For full backend docs, see `backend/API.md`.
+
+---
+
 ## Current Data State
 
 The frontend currently uses **localStorage mock data** (`src/app/utils/adminData.ts`).

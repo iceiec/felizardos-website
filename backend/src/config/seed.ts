@@ -9,6 +9,7 @@ import Facility from "../models/Facility";
 import Schedule from "../models/Schedule";
 import Maintenance from "../models/Maintenance";
 import SiteContent from "../models/SiteContent";
+import AdminSettings from "../models/AdminSettings";
 
 const addDays = (n: number): Date => {
   const d = new Date();
@@ -105,6 +106,23 @@ async function seed(): Promise<void> {
     { upsert: true }
   );
   console.log("Upserted site content");
+
+  // Admin settings (singleton)
+  await AdminSettings.findOneAndUpdate(
+    {},
+    {
+      venueName: "Felizardo's Event Place",
+      address: "Felizardo's Event Place, Batangas, Philippines",
+      phone: "+63 912 345 6789",
+      email: "events@felizardos.com",
+      hours: "Monday – Saturday, 9:00 AM – 6:00 PM",
+      notifyNewBooking: true,
+      notifyMaintenance: true,
+      notifyPayment: false,
+    },
+    { upsert: true }
+  );
+  console.log("Upserted admin settings");
 
   // Sample schedules (only if collection is empty)
   const scheduleCount = await Schedule.countDocuments();

@@ -67,6 +67,17 @@ export interface SiteContent {
   poolDescription: string;
 }
 
+export interface AdminSettings {
+  venueName: string;
+  address: string;
+  phone: string;
+  email: string;
+  hours: string;
+  notifyNewBooking: boolean;
+  notifyMaintenance: boolean;
+  notifyPayment: boolean;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;

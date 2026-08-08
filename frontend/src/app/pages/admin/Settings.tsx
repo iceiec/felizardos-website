@@ -1,48 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   User, Lock, Bell, MapPin, Phone, Mail, Clock,
   Check, Eye, EyeOff, Shield, Trash2, RotateCcw, Save,
 } from "lucide-react";
 import { useAdminAuth } from "../../context/AdminAuth";
+import { settingsService } from "../../services/settingsService";
+import { DEFAULT_ADMIN_SETTINGS } from "../../utils/adminData";
+import type { AdminSettings } from "../../types";
 
-// ─── Persisted settings shape ─────────────────────────────────────────────────
-interface AdminSettings {
-  venueName: string;
-  address: string;
-  phone: string;
-  email: string;
-  hours: string;
-  notifyNewBooking: boolean;
-  notifyMaintenance: boolean;
-  notifyPayment: boolean;
-}
-
-const DEFAULT_SETTINGS: AdminSettings = {
-  venueName: "Felizardo's Event Place",
-  address: "Felizardo's Event Place, Batangas, Philippines",
-  phone: "+63 912 345 6789",
-  email: "events@felizardos.com",
-  hours: "Monday – Saturday, 9:00 AM – 6:00 PM",
-  notifyNewBooking: true,
-  notifyMaintenance: true,
-  notifyPayment: false,
-};
-
-const STORAGE_KEY = "felizardos_settings";
-
-function loadSettings(): AdminSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-
-function saveSettings(s: AdminSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-}
+const DEFAULT_SETTINGS: AdminSettings = DEFAULT_ADMIN_SETTINGS;
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ title, description, icon: Icon, children }: {
@@ -107,8 +74,30 @@ function Toggle({ checked, onChange, label, description }: {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Settings() {
   const { logout } = useAdminAuth();
-  const [settings, setSettings] = useState<AdminSettings>(loadSettings);
+  const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await settingsService.get();
+      if (res.success && res.data) {
+        setSettings(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Unable to load settings. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Password change state
   const [pwCurrent, setPwCurrent] = useState("");
@@ -126,10 +115,19 @@ export default function Settings() {
     setSaved(false);
   };
 
-  const handleSave = () => {
-    saveSettings(settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const handleSave = async () => {
+    setError(null);
+    try {
+      const res = await settingsService.update(settings);
+      if (res.success && res.data) {
+        setSettings(res.data);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Unable to save settings. Please check your connection.");
+    }
   };
 
   const handlePasswordChange = () => {
@@ -153,9 +151,8 @@ export default function Settings() {
 
   const handleReset = () => {
     if (!confirmReset) { setConfirmReset(true); return; }
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("felizardos_site_content");
     setSettings({ ...DEFAULT_SETTINGS });
+    setSaved(false);
     setConfirmReset(false);
   };
 
@@ -177,6 +174,12 @@ export default function Settings() {
       </div>
 
       {/* Account */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-3">
+          {error}
+        </div>
+      )}
+
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
         <Section title="Account" description="Admin login identity" icon={User}>
           <div className="flex items-center gap-4 p-4 bg-[#F8F9FA] rounded-xl">

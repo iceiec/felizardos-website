@@ -59,6 +59,28 @@ export interface SiteContent {
   poolDescription: string;
 }
 
+export interface AdminSettings {
+  venueName: string;
+  address: string;
+  phone: string;
+  email: string;
+  hours: string;
+  notifyNewBooking: boolean;
+  notifyMaintenance: boolean;
+  notifyPayment: boolean;
+}
+
+export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
+  venueName: "Felizardo's Event Place",
+  address: "Felizardo's Event Place, Batangas, Philippines",
+  phone: "+63 912 345 6789",
+  email: "events@felizardos.com",
+  hours: "Monday – Saturday, 9:00 AM – 6:00 PM",
+  notifyNewBooking: true,
+  notifyMaintenance: true,
+  notifyPayment: false,
+};
+
 export const DEFAULT_SITE_CONTENT: SiteContent = {
   heroTagline: "Premium Event Venue · Philippines",
   heroTitle: "Where Every Moment Becomes",
