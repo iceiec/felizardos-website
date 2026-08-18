@@ -31,6 +31,7 @@ app.use((err, _req, res, _next) => {
 });
 async function start() {
     await (0, db_1.connectDB)();
+    await (0, db_1.ensureDefaultAdmin)();
     app.listen(env_1.env.PORT, () => {
         console.log(`Server running on http://localhost:${env_1.env.PORT} [${env_1.env.NODE_ENV}]`);
     });

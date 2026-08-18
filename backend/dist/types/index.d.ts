@@ -36,17 +36,45 @@ export interface IMaintenanceItem {
     scheduledDate: Date;
     assignee: string;
 }
+export interface IVenuePackage {
+    name: string;
+    hours: string;
+    price: string;
+    features: string[];
+    highlight: boolean;
+}
 export interface ISiteContent {
     heroTagline: string;
     heroTitle: string;
     heroHighlight: string;
     heroSubtitle: string;
+    heroImage: string;
     contactAddress: string;
     contactPhone: string;
     contactEmail: string;
     contactHours: string;
+    pavilionImage: string;
     pavilionDescription: string;
+    pavilionIntro: string;
+    pavilionAmenities: string[];
+    pavilionPackages: IVenuePackage[];
+    pavilionGallery: string[];
+    poolImage: string;
     poolDescription: string;
+    poolIntro: string;
+    poolAmenities: string[];
+    poolPackages: IVenuePackage[];
+    poolGallery: string[];
+}
+export interface IAdminSettings {
+    venueName: string;
+    address: string;
+    phone: string;
+    email: string;
+    hours: string;
+    notifyNewBooking: boolean;
+    notifyMaintenance: boolean;
+    notifyPayment: boolean;
 }
 export interface IAdmin {
     email: string;
