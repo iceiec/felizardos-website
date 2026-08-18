@@ -81,7 +81,7 @@ export default function AdminLogin() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="admin@felizardos.com"
+                  placeholder="Email"
                   required
                   className="w-full bg-white/8 border border-white/12 rounded-xl pl-10 pr-4 py-3 text-[14px] text-white placeholder:text-white/25 focus:outline-none focus:border-[#A8C88A]/60 focus:ring-1 focus:ring-[#A8C88A]/20 transition-all"
                 />
@@ -130,11 +130,11 @@ export default function AdminLogin() {
         </div>
 
         {/* Demo credentials hint */}
-        <div className="mt-5 bg-white/4 border border-white/8 rounded-xl px-5 py-4">
+        {/* <div className="mt-5 bg-white/4 border border-white/8 rounded-xl px-5 py-4">
           <p className="text-white/30 text-[11px] tracking-wide uppercase mb-2">Demo Credentials</p>
           <p className="text-white/50 text-[12px] font-mono">admin@felizardos.com</p>
           <p className="text-white/50 text-[12px] font-mono">felizardos2025</p>
-        </div>
+        </div> */}
 
         <p className="text-center text-white/20 text-[11px] mt-6">
           This portal is for authorized staff only.

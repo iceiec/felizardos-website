@@ -30,6 +30,9 @@ const IMGS = {
 
 export default function Home() {
   const [content, setContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
+  const heroImageSrc = content.heroImage || IMGS.hero;
+  const pavilionImageSrc = content.pavilionImage || IMGS.pavilion;
+  const poolImageSrc = content.poolImage || IMGS.pool;
   
   // Form State
   const [formData, setFormData] = useState({
@@ -96,7 +99,7 @@ export default function Home() {
         <motion.div style={{ y: heroImgY }} className="absolute inset-0 scale-[1.12]">
           <div className="absolute inset-0 bg-gradient-to-b from-[#0B1A0B]/60 via-[#0B1A0B]/40 to-[#0B1A0B]/65 z-10" />
           <img
-            src={IMGS.hero}
+            src={heroImageSrc}
             alt="Felizardo's Event Place — serene indoor-outdoor venue"
             className="w-full h-full object-cover"
           />
@@ -204,7 +207,7 @@ export default function Home() {
           <ScaleIn className="relative">
             <Link to="/venues/pavilion" className="block overflow-hidden rounded-2xl aspect-[4/3] bg-stone-200 group cursor-pointer">
               <img
-                src={IMGS.pavilion}
+                src={pavilionImageSrc}
                 alt="Felizardo's Pavilion — open-air venue with lush garden backdrop"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.06]"
               />
@@ -313,7 +316,7 @@ export default function Home() {
           <ScaleIn className="relative order-1 lg:order-2">
             <Link to="/venues/pool" className="block overflow-hidden rounded-2xl aspect-[4/3] bg-sky-100 group cursor-pointer">
               <img
-                src={IMGS.pool}
+                src={poolImageSrc}
                 alt="Felizardo's Swimming Pool — resort-style pool with tropical surroundings"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.06]"
               />

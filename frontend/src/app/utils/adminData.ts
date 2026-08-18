@@ -46,17 +46,36 @@ export interface MaintenanceItem {
   assignee: string;
 }
 
+export interface VenuePackage {
+  name: string;
+  hours: string;
+  price: string;
+  features: string[];
+  highlight: boolean;
+}
+
 export interface SiteContent {
   heroTagline: string;
   heroTitle: string;
   heroHighlight: string;
   heroSubtitle: string;
+  heroImage: string;
   contactAddress: string;
   contactPhone: string;
   contactEmail: string;
   contactHours: string;
+  pavilionImage: string;
   pavilionDescription: string;
+  pavilionIntro: string;
+  pavilionAmenities: string[];
+  pavilionPackages: VenuePackage[];
+  pavilionGallery: string[];
+  poolImage: string;
   poolDescription: string;
+  poolIntro: string;
+  poolAmenities: string[];
+  poolPackages: VenuePackage[];
+  poolGallery: string[];
 }
 
 export interface AdminSettings {
@@ -71,30 +90,38 @@ export interface AdminSettings {
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
-  venueName: "Felizardo's Event Place",
-  address: "Felizardo's Event Place, Batangas, Philippines",
-  phone: "+63 912 345 6789",
-  email: "events@felizardos.com",
-  hours: "Monday – Saturday, 9:00 AM – 6:00 PM",
-  notifyNewBooking: true,
-  notifyMaintenance: true,
+  venueName: "",
+  address: "",
+  phone: "",
+  email: "",
+  hours: "",
+  notifyNewBooking: false,
+  notifyMaintenance: false,
   notifyPayment: false,
 };
 
 export const DEFAULT_SITE_CONTENT: SiteContent = {
-  heroTagline: "Premium Event Venue · Philippines",
-  heroTitle: "Where Every Moment Becomes",
-  heroHighlight: "A Memory",
-  heroSubtitle:
-    "Two stunning venues — an elegant Pavilion and a resort-style Swimming Pool — crafted for celebrations that deserve to be remembered.",
-  contactAddress: "Felizardo's Event Place, Batangas, Philippines",
-  contactPhone: "+63 912 345 6789",
-  contactEmail: "events@felizardos.com",
-  contactHours: "Monday – Saturday, 9:00 AM – 6:00 PM",
-  pavilionDescription:
-    "An open-air masterpiece embraced by lush greenery and golden natural light. The Pavilion transforms any occasion into an elegant affair — from intimate garden weddings to grand corporate galas — accommodating up to 200 guests in effortless style.",
-  poolDescription:
-    "Dive into a tropical paradise. Our resort-style swimming pool turns any gathering into a sun-soaked celebration — perfect for pool parties, children's birthdays, team-building retreats, and intimate sundowner events.",
+  heroTagline: "",
+  heroTitle: "",
+  heroHighlight: "",
+  heroSubtitle: "",
+  heroImage: "",
+  contactAddress: "",
+  contactPhone: "",
+  contactEmail: "",
+  contactHours: "",
+  pavilionImage: "",
+  pavilionDescription: "",
+  pavilionIntro: "",
+  pavilionAmenities: [],
+  pavilionPackages: [],
+  pavilionGallery: [],
+  poolImage: "",
+  poolDescription: "",
+  poolIntro: "",
+  poolAmenities: [],
+  poolPackages: [],
+  poolGallery: [],
 };
 
 export const FACILITY_COLORS: Record<string, string> = {

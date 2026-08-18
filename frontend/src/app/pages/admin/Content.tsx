@@ -1,25 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Save, Check, RotateCcw, Eye, EyeOff, MapPin, Phone, Mail, Clock, Sparkles } from "lucide-react";
-import { type SiteContent } from "../../utils/adminData";
+import { DEFAULT_SITE_CONTENT, type SiteContent, type VenuePackage } from "../../utils/adminData";
 import { contentService } from "../../services/contentService";
 
-// Provide some default fallback just in case the backend hasn't been seeded yet
-const FALLBACK_CONTENT: SiteContent = {
-  heroTagline: "Premium Event Venue · Philippines",
-  heroTitle: "Where Every Moment Becomes",
-  heroHighlight: "A Memory",
-  heroSubtitle:
-    "Two stunning venues — an elegant Pavilion and a resort-style Swimming Pool — crafted for celebrations that deserve to be remembered.",
-  contactAddress: "Felizardo's Event Place, Batangas, Philippines",
-  contactPhone: "+63 912 345 6789",
-  contactEmail: "events@felizardos.com",
-  contactHours: "Monday – Saturday, 9:00 AM – 6:00 PM",
-  pavilionDescription:
-    "An open-air masterpiece embraced by lush greenery and golden natural light. The Pavilion transforms any occasion into an elegant affair — from intimate garden weddings to grand corporate galas — accommodating up to 200 guests in effortless style.",
-  poolDescription:
-    "Dive into a tropical paradise. Our resort-style swimming pool turns any gathering into a sun-soaked celebration — perfect for pool parties, children's birthdays, team-building retreats, and intimate sundowner events.",
-};
+const FALLBACK_CONTENT: SiteContent = DEFAULT_SITE_CONTENT;
 
 type Section = "hero" | "contact" | "venues";
 
@@ -37,7 +22,7 @@ export default function Content() {
     try {
       const res = await contentService.get();
       if (res.success && res.data) {
-        setContent({ ...FALLBACK_CONTENT, ...res.data });
+        setContent({ ...DEFAULT_SITE_CONTENT, ...res.data });
       }
     } catch (err) {
       console.error(err);
@@ -46,6 +31,24 @@ export default function Content() {
 
   const update = (key: keyof SiteContent, val: string) =>
     setContent(c => ({ ...c, [key]: val }));
+
+  const updateStringList = (key: "pavilionAmenities" | "pavilionGallery" | "poolAmenities" | "poolGallery", val: string) => {
+    setContent(c => ({
+      ...c,
+      [key]: val.split(/\n+/).map(item => item.trim()).filter(Boolean),
+    }));
+  };
+
+  const updatePackageList = (key: "pavilionPackages" | "poolPackages", val: string) => {
+    try {
+      const parsed = JSON.parse(val) as VenuePackage[];
+      if (Array.isArray(parsed)) {
+        setContent(c => ({ ...c, [key]: parsed }));
+      }
+    } catch {
+      // ignore invalid JSON while typing
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -69,6 +72,7 @@ export default function Content() {
         heroTitle: FALLBACK_CONTENT.heroTitle,
         heroHighlight: FALLBACK_CONTENT.heroHighlight,
         heroSubtitle: FALLBACK_CONTENT.heroSubtitle,
+        heroImage: FALLBACK_CONTENT.heroImage,
       }));
     } else if (section === "contact") {
       setContent(c => ({
@@ -81,8 +85,18 @@ export default function Content() {
     } else {
       setContent(c => ({
         ...c,
+        pavilionImage: FALLBACK_CONTENT.pavilionImage,
         pavilionDescription: FALLBACK_CONTENT.pavilionDescription,
+        pavilionIntro: FALLBACK_CONTENT.pavilionIntro,
+        pavilionAmenities: [...FALLBACK_CONTENT.pavilionAmenities],
+        pavilionPackages: [...FALLBACK_CONTENT.pavilionPackages],
+        pavilionGallery: [...FALLBACK_CONTENT.pavilionGallery],
+        poolImage: FALLBACK_CONTENT.poolImage,
         poolDescription: FALLBACK_CONTENT.poolDescription,
+        poolIntro: FALLBACK_CONTENT.poolIntro,
+        poolAmenities: [...FALLBACK_CONTENT.poolAmenities],
+        poolPackages: [...FALLBACK_CONTENT.poolPackages],
+        poolGallery: [...FALLBACK_CONTENT.poolGallery],
       }));
     }
   };
@@ -189,6 +203,14 @@ export default function Content() {
                   className={INPUT_CLS + " resize-none"}
                 />
               </Field>
+              <Field label="Hero Background Image URL">
+                <input
+                  value={content.heroImage || ""}
+                  onChange={e => update("heroImage", e.target.value)}
+                  className={INPUT_CLS}
+                  placeholder="https://images.example.com/hero.jpg"
+                />
+              </Field>
             </Section>
           )}
 
@@ -242,6 +264,14 @@ export default function Content() {
 
           {activeSection === "venues" && (
             <Section title="Venue Descriptions" icon={<Eye className="w-4 h-4" />} onReset={() => handleReset("venues")}>
+              <Field label="The Pavilion — Intro">
+                <textarea
+                  rows={3}
+                  value={content.pavilionIntro || ""}
+                  onChange={e => update("pavilionIntro", e.target.value)}
+                  className={INPUT_CLS + " resize-none"}
+                />
+              </Field>
               <Field label="The Pavilion — Description">
                 <textarea
                   rows={4}
@@ -249,7 +279,47 @@ export default function Content() {
                   onChange={e => update("pavilionDescription", e.target.value)}
                   className={INPUT_CLS + " resize-none"}
                 />
-                <p className="text-[11px] text-[#aaa] mt-1">Shown in the Pavilion section on the landing page.</p>
+              </Field>
+              <Field label="Pavilion Image URL">
+                <input
+                  value={content.pavilionImage || ""}
+                  onChange={e => update("pavilionImage", e.target.value)}
+                  className={INPUT_CLS}
+                  placeholder="https://images.example.com/pavilion.jpg"
+                />
+              </Field>
+              <Field label="Pavilion Amenities (one per line)">
+                <textarea
+                  rows={5}
+                  value={content.pavilionAmenities.join("\n")}
+                  onChange={e => updateStringList("pavilionAmenities", e.target.value)}
+                  className={INPUT_CLS + " resize-none font-mono text-[12px]"}
+                />
+              </Field>
+              <Field label="Pavilion Packages (JSON array)">
+                <textarea
+                  rows={12}
+                  value={JSON.stringify(content.pavilionPackages, null, 2)}
+                  onChange={e => updatePackageList("pavilionPackages", e.target.value)}
+                  className={INPUT_CLS + " resize-none font-mono text-[12px]"}
+                />
+              </Field>
+              <Field label="Pavilion Gallery URLs (one per line)">
+                <textarea
+                  rows={5}
+                  value={content.pavilionGallery.join("\n")}
+                  onChange={e => updateStringList("pavilionGallery", e.target.value)}
+                  className={INPUT_CLS + " resize-none font-mono text-[12px]"}
+                />
+              </Field>
+
+              <Field label="Swimming Pool — Intro">
+                <textarea
+                  rows={3}
+                  value={content.poolIntro || ""}
+                  onChange={e => update("poolIntro", e.target.value)}
+                  className={INPUT_CLS + " resize-none"}
+                />
               </Field>
               <Field label="Swimming Pool — Description">
                 <textarea
@@ -258,7 +328,38 @@ export default function Content() {
                   onChange={e => update("poolDescription", e.target.value)}
                   className={INPUT_CLS + " resize-none"}
                 />
-                <p className="text-[11px] text-[#aaa] mt-1">Shown in the Swimming Pool section on the landing page.</p>
+              </Field>
+              <Field label="Swimming Pool Image URL">
+                <input
+                  value={content.poolImage || ""}
+                  onChange={e => update("poolImage", e.target.value)}
+                  className={INPUT_CLS}
+                  placeholder="https://images.example.com/pool.jpg"
+                />
+              </Field>
+              <Field label="Pool Amenities (one per line)">
+                <textarea
+                  rows={5}
+                  value={content.poolAmenities.join("\n")}
+                  onChange={e => updateStringList("poolAmenities", e.target.value)}
+                  className={INPUT_CLS + " resize-none font-mono text-[12px]"}
+                />
+              </Field>
+              <Field label="Pool Packages (JSON array)">
+                <textarea
+                  rows={12}
+                  value={JSON.stringify(content.poolPackages, null, 2)}
+                  onChange={e => updatePackageList("poolPackages", e.target.value)}
+                  className={INPUT_CLS + " resize-none font-mono text-[12px]"}
+                />
+              </Field>
+              <Field label="Pool Gallery URLs (one per line)">
+                <textarea
+                  rows={5}
+                  value={content.poolGallery.join("\n")}
+                  onChange={e => updateStringList("poolGallery", e.target.value)}
+                  className={INPUT_CLS + " resize-none font-mono text-[12px]"}
+                />
               </Field>
             </Section>
           )}

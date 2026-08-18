@@ -54,17 +54,36 @@ export interface MaintenanceItem {
   updatedAt?: string;
 }
 
+export interface VenuePackage {
+  name: string;
+  hours: string;
+  price: string;
+  features: string[];
+  highlight: boolean;
+}
+
 export interface SiteContent {
   heroTagline: string;
   heroTitle: string;
   heroHighlight: string;
   heroSubtitle: string;
+  heroImage: string;
   contactAddress: string;
   contactPhone: string;
   contactEmail: string;
   contactHours: string;
+  pavilionImage: string;
   pavilionDescription: string;
+  pavilionIntro: string;
+  pavilionAmenities: string[];
+  pavilionPackages: VenuePackage[];
+  pavilionGallery: string[];
+  poolImage: string;
   poolDescription: string;
+  poolIntro: string;
+  poolAmenities: string[];
+  poolPackages: VenuePackage[];
+  poolGallery: string[];
 }
 
 export interface AdminSettings {

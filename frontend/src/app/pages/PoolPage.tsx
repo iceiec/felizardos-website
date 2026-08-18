@@ -1,10 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
 import { motion, useScroll, useTransform } from "motion/react";
 import { ArrowLeft, ArrowRight, X, Check, ChevronLeft, ChevronRight, Users, Clock, Waves, Sun, ShieldCheck, Music } from "lucide-react";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import { FadeUp, ScaleIn } from "../components/shared";
+import { contentService } from "../services/contentService";
+import { DEFAULT_SITE_CONTENT, type SiteContent } from "../utils/adminData";
 
 const GALLERY = [
   {
@@ -80,6 +82,8 @@ const AMENITIES = [
   { Icon: Music,      label: "Waterproof Sound System",   desc: "Bluetooth-ready poolside speakers" },
   { Icon: Clock,      label: "Evening Lighting",           desc: "Underwater LED ambiance for night events" },
 ];
+
+const FALLBACK_HERO_IMAGE = "https://images.unsplash.com/photo-1596178067639-5c6e68aea6dc?w=1920&h=1080&fit=crop&auto=format";
 
 const PACKAGES = [
   {
@@ -187,16 +191,40 @@ function Lightbox({
 }
 
 export default function PoolPage() {
+  const [content, setContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
+  useEffect(() => {
+    contentService.get().then(res => {
+      if (res.success && res.data) {
+        setContent(prev => ({ ...prev, ...res.data }));
+      }
+    }).catch(console.error);
+  }, []);
+
+  const galleryPhotos = (content.poolGallery.length ? content.poolGallery : GALLERY.map(item => item.src)).map((src, index) => ({
+    src,
+    thumb: src,
+    alt: GALLERY[index % GALLERY.length]?.alt ?? "Pool venue photo",
+    caption: GALLERY[index % GALLERY.length]?.caption ?? "Pool photo",
+    size: GALLERY[index % GALLERY.length]?.size ?? "normal",
+  }));
+  const amenities = content.poolAmenities.length ? content.poolAmenities.map((label, index) => ({
+    Icon: AMENITIES[index % AMENITIES.length].Icon,
+    label,
+    desc: AMENITIES[index % AMENITIES.length].desc,
+  })) : AMENITIES;
+  const packageCards = content.poolPackages.length ? content.poolPackages : PACKAGES;
+  const heroImage = content.poolImage || FALLBACK_HERO_IMAGE;
+
   const openLightbox = (i: number) => setLightboxIdx(i);
   const closeLightbox = () => setLightboxIdx(null);
-  const prevPhoto = () => setLightboxIdx(i => (i === null ? null : (i - 1 + GALLERY.length) % GALLERY.length));
-  const nextPhoto = () => setLightboxIdx(i => (i === null ? null : (i + 1) % GALLERY.length));
+  const prevPhoto = () => setLightboxIdx(i => (i === null ? null : (i - 1 + galleryPhotos.length) % galleryPhotos.length));
+  const nextPhoto = () => setLightboxIdx(i => (i === null ? null : (i + 1) % galleryPhotos.length));
 
   return (
     <div className="min-h-screen bg-[#F9F8F4] text-[#111] font-sans overflow-x-hidden">
@@ -207,7 +235,7 @@ export default function PoolPage() {
         <motion.div style={{ y: heroY }} className="absolute inset-0 scale-[1.1]">
           <div className="absolute inset-0 bg-gradient-to-b from-[#051015]/55 via-[#051015]/25 to-[#051015]/72 z-10" />
           <img
-            src="https://images.unsplash.com/photo-1596178067639-5c6e68aea6dc?w=1920&h=1080&fit=crop&auto=format"
+            src={heroImage}
             alt="Felizardo's Swimming Pool — resort-style tropical pool"
             className="w-full h-full object-cover"
           />
@@ -253,7 +281,7 @@ export default function PoolPage() {
             transition={{ delay: 0.55, duration: 0.75 }}
             className="text-white/65 text-[17px] max-w-lg leading-relaxed mb-10"
           >
-            A resort-style tropical paradise for pool parties, family celebrations, team events, and sunset gatherings.
+            {content.poolIntro || "A resort-style tropical paradise for pool parties, family celebrations, team events, and sunset gatherings."}
           </motion.p>
 
           <motion.div
@@ -300,20 +328,17 @@ export default function PoolPage() {
               Dive Into<br />Tropical Celebration
             </h2>
             <p className="text-[#555] leading-relaxed mb-5 text-[16px]">
-              Our resort-style Swimming Pool turns any gathering into a sunlit tropical paradise. With crystal-clear water, a wide surrounding deck, and lush greenery framing every angle, the pool area creates an instantly festive and carefree atmosphere.
-            </p>
-            <p className="text-[#555] leading-relaxed mb-10 text-[16px]">
-              Whether it's a splashy kids' birthday party, an energetic corporate team-building day, or a sophisticated evening pool soirée under the stars, this venue adapts to your vision. Add our poolside bar, floating décor, or underwater lighting for an unforgettable experience.
+              {content.poolDescription || "Our resort-style Swimming Pool turns any gathering into a sunlit tropical paradise. With crystal-clear water, a wide surrounding deck, and lush greenery framing every angle, the pool area creates an instantly festive and carefree atmosphere."}
             </p>
             <div className="grid grid-cols-2 gap-4">
-              {[
+              {(content.poolAmenities.length ? content.poolAmenities : [
                 "Crystal-clear filtered water",
                 "Wide surrounding deck",
                 "Floating décor available",
                 "Pool bar & refreshments",
                 "Underwater LED lighting",
                 "Changing rooms & showers",
-              ].map((f, i) => (
+              ]).map((f, i) => (
                 <div key={i} className="flex items-center gap-2.5 text-[14px] text-[#444]">
                   <span className="w-5 h-5 rounded-full bg-[#E0F2FA] flex items-center justify-center flex-shrink-0">
                     <Check className="w-3 h-3 text-[#1A6080]" />
@@ -360,8 +385,8 @@ export default function PoolPage() {
             <h2 className="font-display text-4xl font-bold">Everything Included</h2>
           </FadeUp>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {AMENITIES.map(({ Icon, label, desc }, i) => (
-              <FadeUp key={i} delay={i * 0.07}>
+            {amenities.map(({ Icon, label, desc }, i) => (
+              <FadeUp key={`${label}-${i}`} delay={i * 0.07}>
                 <div className="bg-white rounded-2xl p-6 border border-[#E4DFCF] hover:border-[#9DD4E8] hover:shadow-md transition-all duration-300 flex items-start gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-[#E0F2FA] flex items-center justify-center flex-shrink-0 group-hover:bg-[#0D2A38] transition-colors duration-300">
                     <Icon className="text-[#1A6080] group-hover:text-white transition-colors duration-300 w-[18px] h-[18px]" />
@@ -388,8 +413,8 @@ export default function PoolPage() {
         </FadeUp>
 
         <div className="columns-2 md:columns-3 gap-4">
-          {GALLERY.map((photo, i) => (
-            <FadeUp key={i} delay={i * 0.05} className="break-inside-avoid mb-4">
+          {galleryPhotos.map((photo, i) => (
+            <FadeUp key={`${photo.src}-${i}`} delay={i * 0.05} className="break-inside-avoid mb-4">
               <div
                 className={`overflow-hidden rounded-xl bg-sky-100 group cursor-pointer relative ${
                   photo.size === "tall" ? "aspect-[3/4]" : "aspect-[4/3]"
@@ -412,7 +437,7 @@ export default function PoolPage() {
         </div>
 
         <FadeUp className="text-center mt-10">
-          <p className="text-[#999] text-[13px]">{GALLERY.length} photos · Click any image to view full size</p>
+          <p className="text-[#999] text-[13px]">{galleryPhotos.length} photos · Click any image to view full size</p>
         </FadeUp>
       </section>
 
@@ -426,8 +451,8 @@ export default function PoolPage() {
           </FadeUp>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {PACKAGES.map((pkg, i) => (
-              <FadeUp key={i} delay={i * 0.1}>
+            {packageCards.map((pkg, i) => (
+              <FadeUp key={`${pkg.name}-${i}`} delay={i * 0.1}>
                 <div className={`rounded-2xl p-7 h-full flex flex-col transition-all duration-300 ${
                   pkg.highlight
                     ? "bg-[#0D2A38] text-white shadow-2xl shadow-[#0D2A38]/30 scale-[1.02]"
@@ -513,7 +538,7 @@ export default function PoolPage() {
 
       {lightboxIdx !== null && (
         <Lightbox
-          photos={GALLERY}
+          photos={galleryPhotos}
           index={lightboxIdx}
           onClose={closeLightbox}
           onPrev={prevPhoto}

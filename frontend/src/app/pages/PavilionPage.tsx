@@ -1,10 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
 import { motion, useScroll, useTransform } from "motion/react";
 import { ArrowLeft, ArrowRight, X, Check, ChevronLeft, ChevronRight, Users, Clock, Utensils, Car, Wifi, Music } from "lucide-react";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import { FadeUp, ScaleIn } from "../components/shared";
+import { contentService } from "../services/contentService";
+import { DEFAULT_SITE_CONTENT, type SiteContent } from "../utils/adminData";
 
 const GALLERY = [
   {
@@ -80,6 +82,8 @@ const AMENITIES = [
   { Icon: Car,      label: "Ample Parking",            desc: "Free on-site parking for all guests" },
   { Icon: Wifi,     label: "Wi-Fi Included",           desc: "High-speed connectivity throughout" },
 ];
+
+const FALLBACK_HERO_IMAGE = "https://images.unsplash.com/photo-1767131626424-c4ab452bb34b?w=1920&h=1080&fit=crop&auto=format";
 
 const PACKAGES = [
   {
@@ -189,16 +193,40 @@ function Lightbox({
 }
 
 export default function PavilionPage() {
+  const [content, setContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
+  useEffect(() => {
+    contentService.get().then(res => {
+      if (res.success && res.data) {
+        setContent(prev => ({ ...prev, ...res.data }));
+      }
+    }).catch(console.error);
+  }, []);
+
+  const galleryPhotos = (content.pavilionGallery.length ? content.pavilionGallery : GALLERY.map(item => item.src)).map((src, index) => ({
+    src,
+    thumb: src,
+    alt: GALLERY[index % GALLERY.length]?.alt ?? "Pavilion venue photo",
+    caption: GALLERY[index % GALLERY.length]?.caption ?? "Pavilion photo",
+    size: GALLERY[index % GALLERY.length]?.size ?? "normal",
+  }));
+  const amenities = content.pavilionAmenities.length ? content.pavilionAmenities.map((label, index) => ({
+    Icon: AMENITIES[index % AMENITIES.length].Icon,
+    label,
+    desc: AMENITIES[index % AMENITIES.length].desc,
+  })) : AMENITIES;
+  const packageCards = content.pavilionPackages.length ? content.pavilionPackages : PACKAGES;
+  const heroImage = content.pavilionImage || FALLBACK_HERO_IMAGE;
+
   const openLightbox = (i: number) => setLightboxIdx(i);
   const closeLightbox = () => setLightboxIdx(null);
-  const prevPhoto = () => setLightboxIdx(i => (i === null ? null : (i - 1 + GALLERY.length) % GALLERY.length));
-  const nextPhoto = () => setLightboxIdx(i => (i === null ? null : (i + 1) % GALLERY.length));
+  const prevPhoto = () => setLightboxIdx(i => (i === null ? null : (i - 1 + galleryPhotos.length) % galleryPhotos.length));
+  const nextPhoto = () => setLightboxIdx(i => (i === null ? null : (i + 1) % galleryPhotos.length));
 
   return (
     <div className="min-h-screen bg-[#F9F8F4] text-[#111] font-sans overflow-x-hidden">
@@ -209,7 +237,7 @@ export default function PavilionPage() {
         <motion.div style={{ y: heroY }} className="absolute inset-0 scale-[1.1]">
           <div className="absolute inset-0 bg-gradient-to-b from-[#0B1A0B]/55 via-[#0B1A0B]/30 to-[#0B1A0B]/70 z-10" />
           <img
-            src="https://images.unsplash.com/photo-1767131626424-c4ab452bb34b?w=1920&h=1080&fit=crop&auto=format"
+            src={heroImage}
             alt="Felizardo's Pavilion — open-air garden venue"
             className="w-full h-full object-cover"
           />
@@ -255,7 +283,7 @@ export default function PavilionPage() {
             transition={{ delay: 0.55, duration: 0.75 }}
             className="text-white/65 text-[17px] max-w-lg leading-relaxed mb-10"
           >
-            An open-air garden sanctuary for weddings, debuts, and milestone celebrations — up to 200 guests in effortless elegance.
+            {content.pavilionIntro || "An open-air garden sanctuary for weddings, debuts, and milestone celebrations — up to 200 guests in effortless elegance."}
           </motion.p>
 
           <motion.div
@@ -302,20 +330,17 @@ export default function PavilionPage() {
               Garden Elegance,<br />Naturally Yours
             </h2>
             <p className="text-[#555] leading-relaxed mb-5 text-[16px]">
-              The Pavilion is an open-air event space nestled within lush tropical gardens, where natural light filters through greenery and gentle breezes carry the scent of blossoms. Designed to blur the boundary between indoors and out, it creates an atmosphere that feels at once grand and intimate.
-            </p>
-            <p className="text-[#555] leading-relaxed mb-10 text-[16px]">
-              Whether you envision a candle-lit wedding reception, a vibrant birthday celebration, or a refined corporate gathering, the Pavilion provides a flexible canvas for your vision. Our team handles every detail — from draping and florals to sound and lighting — so you can be fully present for every moment.
+              {content.pavilionDescription || "The Pavilion is an open-air event space nestled within lush tropical gardens, where natural light filters through greenery and gentle breezes carry the scent of blossoms. Designed to blur the boundary between indoors and out, it creates an atmosphere that feels at once grand and intimate."}
             </p>
             <div className="grid grid-cols-2 gap-4">
-              {[
+              {(content.pavilionAmenities.length ? content.pavilionAmenities : [
                 "Garden & greens backdrop",
                 "Natural & artificial lighting",
                 "Flexible layout configurations",
                 "Bridal suite available",
                 "Backup generator",
                 "Climate-managed comfort",
-              ].map((f, i) => (
+              ]).map((f, i) => (
                 <div key={i} className="flex items-center gap-2.5 text-[14px] text-[#444]">
                   <span className="w-5 h-5 rounded-full bg-[#EEF5E8] flex items-center justify-center flex-shrink-0">
                     <Check className="w-3 h-3 text-[#2D5016]" />
@@ -362,8 +387,8 @@ export default function PavilionPage() {
             <h2 className="font-display text-4xl font-bold">Everything Included</h2>
           </FadeUp>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {AMENITIES.map(({ Icon, label, desc }, i) => (
-              <FadeUp key={i} delay={i * 0.07}>
+            {amenities.map(({ Icon, label, desc }, i) => (
+              <FadeUp key={`${label}-${i}`} delay={i * 0.07}>
                 <div className="bg-white rounded-2xl p-6 border border-[#E4DFCF] hover:border-[#A8C88A] hover:shadow-md transition-all duration-300 flex items-start gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-[#EEF5E8] flex items-center justify-center flex-shrink-0 group-hover:bg-[#1E3A1E] transition-colors duration-300">
                     <Icon className="w-4.5 h-4.5 text-[#2D5016] group-hover:text-white transition-colors duration-300 w-[18px] h-[18px]" />
@@ -391,8 +416,8 @@ export default function PavilionPage() {
 
         {/* Masonry gallery grid */}
         <div className="columns-2 md:columns-3 gap-4">
-          {GALLERY.map((photo, i) => (
-            <FadeUp key={i} delay={i * 0.05} className="break-inside-avoid mb-4">
+          {galleryPhotos.map((photo, i) => (
+            <FadeUp key={`${photo.src}-${i}`} delay={i * 0.05} className="break-inside-avoid mb-4">
               <div
                 className={`overflow-hidden rounded-xl bg-stone-200 group cursor-pointer relative ${
                   photo.size === "tall" ? "aspect-[3/4]" : photo.size === "wide" ? "aspect-[4/3]" : "aspect-[4/3]"
@@ -404,7 +429,6 @@ export default function PavilionPage() {
                   alt={photo.alt}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.06]"
                 />
-                {/* Hover overlay */}
                 <div className="absolute inset-0 bg-[#0B1A0B]/0 group-hover:bg-[#0B1A0B]/40 transition-all duration-400 flex items-end p-4">
                   <span className="text-white text-[13px] font-medium opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
                     {photo.caption}
@@ -416,7 +440,7 @@ export default function PavilionPage() {
         </div>
 
         <FadeUp className="text-center mt-10">
-          <p className="text-[#999] text-[13px]">{GALLERY.length} photos · Click any image to view full size</p>
+          <p className="text-[#999] text-[13px]">{galleryPhotos.length} photos · Click any image to view full size</p>
         </FadeUp>
       </section>
 
@@ -430,8 +454,8 @@ export default function PavilionPage() {
           </FadeUp>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {PACKAGES.map((pkg, i) => (
-              <FadeUp key={i} delay={i * 0.1}>
+            {packageCards.map((pkg, i) => (
+              <FadeUp key={`${pkg.name}-${i}`} delay={i * 0.1}>
                 <div className={`rounded-2xl p-7 h-full flex flex-col transition-all duration-300 ${
                   pkg.highlight
                     ? "bg-[#1E3A1E] text-white shadow-2xl shadow-[#1E3A1E]/25 scale-[1.02]"
@@ -518,7 +542,7 @@ export default function PavilionPage() {
       {/* Lightbox */}
       {lightboxIdx !== null && (
         <Lightbox
-          photos={GALLERY}
+          photos={galleryPhotos}
           index={lightboxIdx}
           onClose={closeLightbox}
           onPrev={prevPhoto}
