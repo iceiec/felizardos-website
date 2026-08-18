@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import { env } from "./config/env";
-import { connectDB } from "./config/db";
+import { connectDB, ensureDefaultAdmin } from "./config/db";
 import apiRoutes from "./routes";
 
 const app = express();
@@ -32,6 +32,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 async function start(): Promise<void> {
   await connectDB();
+  await ensureDefaultAdmin();
   app.listen(env.PORT, () => {
     console.log(`Server running on http://localhost:${env.PORT} [${env.NODE_ENV}]`);
   });
