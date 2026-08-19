@@ -652,6 +652,69 @@ export const paymentService = {
 
 ---
 
+## SEO Integration
+
+This project implements a client-side SEO strategy in the React frontend and exposes a simple content API from the backend so site owners can update copy and Open Graph images without code changes.
+
+- **Relevant backend endpoints:**
+  - `GET /api/content` — returns the singleton `SiteContent` document. The frontend calls this via `contentService.get()`.
+  - `PUT /api/content` — protected (admin) endpoint used by the admin UI to update landing copy, hero images, gallery arrays, and other fields used by Open Graph meta tags.
+
+- **Model:**
+  - `src/models/SiteContent.ts` stores the site-wide copy and image URLs. The `contentController` upserts a singleton document on first read.
+
+- **How the frontend uses it:**
+  - Pages fetch `/api/content` and pass values into `src/app/components/SEO.tsx` (client-side). That component upserts `<meta>` tags (title, description, `og:*`, `twitter:*`, canonical, robots) at runtime.
+
+- **Server-side recommendations (optional):**
+  - For robust SEO and social preview generation (beyond client-side updates), consider:
+    - Adding server-side rendering (SSR) or prerendering for public pages so crawlers receive meta tags without executing JavaScript.
+    - Generating a `sitemap.xml` and serving a `robots.txt` from the server. Example lightweight `sitemap.xml` route:
+
+```ts
+// src/routes/misc.ts
+import { Router } from "express";
+import Facility from "../models/Facility";
+import SiteContent from "../models/SiteContent";
+
+const router = Router();
+
+router.get("/sitemap.xml", async (_req, res) => {
+  const host = process.env.CLIENT_ORIGIN?.replace(/\/$/, '') || 'https://example.com';
+  const facilities = await Facility.find({});
+  const content = await SiteContent.findOne() || {};
+
+  const urls = [
+    `${host}/`,
+    `${host}/venues/pavilion`,
+    `${host}/venues/pool`,
+    // optionally include dynamic facility pages
+    ...facilities.map(f => `${host}/venues/${f.id}`),
+  ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+    urls.map(u => `<url><loc>${u}</loc></url>`).join('\n') +
+    `\n</urlset>`;
+
+  res.header('Content-Type', 'application/xml').send(xml);
+});
+
+export default router;
+```
+
+  - Mount this route (`/sitemap.xml`) in `src/routes/index.ts` and ensure `CLIENT_ORIGIN` is set correctly in `.env` so canonical links and sitemap hostnames are accurate.
+
+- **Robots.txt:**
+  - Serve a simple `robots.txt` from the `public/` folder or via a route that returns `User-agent: *` and `Sitemap: <host>/sitemap.xml`.
+
+- **Admin flow:**
+  - Admins edit landing copy and hero/OG images via the admin Content page (`/admin/content`), which calls `PUT /api/content`. The frontend reads the updated content and `SEO.tsx` reflects changes immediately on the client.
+
+If you want, I can implement the `sitemap.xml` route and a `robots.txt` endpoint now and wire them into the router.
+
+---
+
 ## Deploying
 
 **Recommended free stack:**

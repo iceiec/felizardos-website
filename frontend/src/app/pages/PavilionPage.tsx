@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { ArrowLeft, ArrowRight, X, Check, ChevronLeft, ChevronRight, Users, Clock, Utensils, Car, Wifi, Music } from "lucide-react";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
+import SEO from "../components/SEO";
 import { FadeUp, ScaleIn } from "../components/shared";
 import { contentService } from "../services/contentService";
 import { DEFAULT_SITE_CONTENT, type SiteContent } from "../utils/adminData";
@@ -230,6 +231,12 @@ export default function PavilionPage() {
 
   return (
     <div className="min-h-screen bg-[#F9F8F4] text-[#111] font-sans overflow-x-hidden">
+      <SEO
+        title={"The Pavilion"}
+        description={content.pavilionIntro || undefined}
+        image={heroImage}
+        url={typeof window !== "undefined" ? window.location.href : "/venues/pavilion"}
+      />
       <Nav transparent />
 
       {/* Hero */}

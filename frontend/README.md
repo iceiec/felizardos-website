@@ -159,3 +159,45 @@ For full backend docs, see `backend/API.md`.
 The frontend currently uses **localStorage mock data** (`src/app/utils/adminData.ts`).
 When the backend is running, swap each page's `useState(INITIAL_*)` with API service calls.
 See `FRONTEND.md → Connecting to the Backend` for the step-by-step migration.
+
+---
+
+## SEO Integration
+
+- **What was added:** a lightweight client-side SEO helper component that updates the page `<title>` and meta tags (Open Graph, Twitter, robots, canonical, theme-color) at runtime.
+- **Files:**
+	- `src/app/components/SEO.tsx` — the SEO component that upserts meta tags from React.
+	- `index.html` — default meta tags and Open Graph fallbacks.
+	- `src/app/pages/Home.tsx`, `src/app/pages/PavilionPage.tsx`, `src/app/pages/PoolPage.tsx` — these pages now import and use `SEO` with page-specific values.
+
+- **How it works:**
+	- The `SEO` component runs a `useEffect` on the client and performs safe DOM updates: it sets `document.title`, creates/updates `<meta>` tags (description, robots, `og:*`, `twitter:*`), and ensures a `link[rel="canonical"]` exists.
+	- Page components pass `title`, `description`, `image`, and `url` props to `SEO` so the right tags appear when users navigate the SPA.
+	- The landing `index.html` contains sane defaults for crawlers and social previews when JavaScript is disabled or before hydration.
+
+- **How it ties to the backend:**
+	- The frontend reads dynamic copy and images from the backend via `GET /api/content` using `src/app/services/contentService.ts`.
+	- When admins update site content (`PUT /api/content`) via the admin UI, the landing pages will fetch and use those values — the `SEO` component will reflect updated text and Open Graph images.
+
+- **Limitations & recommendations:**
+	- This implementation updates meta tags client-side only. For the best SEO and social preview reliability (especially for crawlers that don't execute JavaScript), consider server-side rendering (SSR) or prerendering pages, or generate static meta tags at build time for public pages.
+	- Add a `sitemap.xml` and `robots.txt` from the backend for better indexing. See the backend guide for an example sitemap route.
+	- To provide rich results, add JSON-LD structured data (Organization, Website, LocalBusiness/EventVenue) either in `SEO.tsx` or server-rendered templates.
+
+- **Usage example (already applied):**
+
+	In a page component:
+
+	```tsx
+	import SEO from "../components/SEO";
+
+	// inside render
+	<SEO
+		title={content.heroTitle || "Felizardo's Event Place"}
+		description={content.heroSubtitle}
+		image={content.heroImage}
+		url={typeof window !== 'undefined' ? window.location.href : '/'}
+	/>
+	```
+
+If you'd like, I can add an automated `sitemap.xml` route to the backend and example JSON-LD snippets for the most important pages.

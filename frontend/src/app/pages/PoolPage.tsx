@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { ArrowLeft, ArrowRight, X, Check, ChevronLeft, ChevronRight, Users, Clock, Waves, Sun, ShieldCheck, Music } from "lucide-react";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
+import SEO from "../components/SEO";
 import { FadeUp, ScaleIn } from "../components/shared";
 import { contentService } from "../services/contentService";
 import { DEFAULT_SITE_CONTENT, type SiteContent } from "../utils/adminData";
@@ -228,6 +229,12 @@ export default function PoolPage() {
 
   return (
     <div className="min-h-screen bg-[#F9F8F4] text-[#111] font-sans overflow-x-hidden">
+      <SEO
+        title={"Swimming Pool"}
+        description={content.poolIntro || undefined}
+        image={heroImage}
+        url={typeof window !== "undefined" ? window.location.href : "/venues/pool"}
+      />
       <Nav transparent />
 
       {/* Hero */}
