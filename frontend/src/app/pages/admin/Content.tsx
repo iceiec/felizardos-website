@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Save, Check, RotateCcw, Eye, EyeOff, MapPin, Phone, Mail, Clock, Sparkles } from "lucide-react";
 import { DEFAULT_SITE_CONTENT, type SiteContent, type VenuePackage } from "../../utils/adminData";
 import { contentService } from "../../services/contentService";
+import uploadService from "../../services/uploadService";
 
 const FALLBACK_CONTENT: SiteContent = DEFAULT_SITE_CONTENT;
 
@@ -13,6 +14,8 @@ export default function Content() {
   const [activeSection, setActiveSection] = useState<Section>("hero");
   const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     fetchContent();
@@ -210,6 +213,38 @@ export default function Content() {
                   className={INPUT_CLS}
                   placeholder="https://images.example.com/hero.jpg"
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="inline-flex items-center gap-2 text-[13px] text-[#666]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploadError("");
+                        setUploading(true);
+                        try {
+                          const res = await uploadService.uploadFile(f);
+                          if (res.success && res.url) {
+                            update("heroImage", res.url);
+                          } else {
+                            setUploadError(res.message || "Upload failed");
+                          }
+                        } catch (err) {
+                          setUploadError((err as Error).message || "Upload error");
+                        } finally {
+                          setUploading(false);
+                          // reset the input so same file can be selected later
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span className="px-3 py-2 bg-[#F4F5F7] rounded-lg border border-[#E5E7EB] text-[13px]">Upload Image</span>
+                  </label>
+                  {uploading && <span className="text-[13px] text-[#666]">Uploading…</span>}
+                  {uploadError && <span className="text-[13px] text-red-600">{uploadError}</span>}
+                </div>
               </Field>
             </Section>
           )}
@@ -287,6 +322,37 @@ export default function Content() {
                   className={INPUT_CLS}
                   placeholder="https://images.example.com/pavilion.jpg"
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="inline-flex items-center gap-2 text-[13px] text-[#666]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploadError("");
+                        setUploading(true);
+                        try {
+                          const res = await uploadService.uploadFile(f);
+                          if (res.success && res.url) {
+                            update("pavilionImage", res.url);
+                          } else {
+                            setUploadError(res.message || "Upload failed");
+                          }
+                        } catch (err) {
+                          setUploadError((err as Error).message || "Upload error");
+                        } finally {
+                          setUploading(false);
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span className="px-3 py-2 bg-[#F4F5F7] rounded-lg border border-[#E5E7EB] text-[13px]">Upload Image</span>
+                  </label>
+                  {uploading && <span className="text-[13px] text-[#666]">Uploading…</span>}
+                  {uploadError && <span className="text-[13px] text-red-600">{uploadError}</span>}
+                </div>
               </Field>
               <Field label="Pavilion Amenities (one per line)">
                 <textarea
@@ -311,6 +377,37 @@ export default function Content() {
                   onChange={e => updateStringList("pavilionGallery", e.target.value)}
                   className={INPUT_CLS + " resize-none font-mono text-[12px]"}
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="inline-flex items-center gap-2 text-[13px] text-[#666]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploadError("");
+                        setUploading(true);
+                        try {
+                          const res = await uploadService.uploadFile(f);
+                          if (res.success && res.url) {
+                            setContent(c => ({ ...c, pavilionGallery: [...c.pavilionGallery, res.url || ""] }));
+                          } else {
+                            setUploadError(res.message || "Upload failed");
+                          }
+                        } catch (err) {
+                          setUploadError((err as Error).message || "Upload error");
+                        } finally {
+                          setUploading(false);
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span className="px-3 py-2 bg-[#F4F5F7] rounded-lg border border-[#E5E7EB] text-[13px]">Upload to Gallery</span>
+                  </label>
+                  {uploading && <span className="text-[13px] text-[#666]">Uploading…</span>}
+                  {uploadError && <span className="text-[13px] text-red-600">{uploadError}</span>}
+                </div>
               </Field>
 
               <Field label="Swimming Pool — Intro">
@@ -336,6 +433,37 @@ export default function Content() {
                   className={INPUT_CLS}
                   placeholder="https://images.example.com/pool.jpg"
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="inline-flex items-center gap-2 text-[13px] text-[#666]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploadError("");
+                        setUploading(true);
+                        try {
+                          const res = await uploadService.uploadFile(f);
+                          if (res.success && res.url) {
+                            update("poolImage", res.url);
+                          } else {
+                            setUploadError(res.message || "Upload failed");
+                          }
+                        } catch (err) {
+                          setUploadError((err as Error).message || "Upload error");
+                        } finally {
+                          setUploading(false);
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span className="px-3 py-2 bg-[#F4F5F7] rounded-lg border border-[#E5E7EB] text-[13px]">Upload Image</span>
+                  </label>
+                  {uploading && <span className="text-[13px] text-[#666]">Uploading…</span>}
+                  {uploadError && <span className="text-[13px] text-red-600">{uploadError}</span>}
+                </div>
               </Field>
               <Field label="Pool Amenities (one per line)">
                 <textarea
@@ -360,6 +488,37 @@ export default function Content() {
                   onChange={e => updateStringList("poolGallery", e.target.value)}
                   className={INPUT_CLS + " resize-none font-mono text-[12px]"}
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="inline-flex items-center gap-2 text-[13px] text-[#666]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploadError("");
+                        setUploading(true);
+                        try {
+                          const res = await uploadService.uploadFile(f);
+                          if (res.success && res.url) {
+                            setContent(c => ({ ...c, poolGallery: [...c.poolGallery, res.url || ""] }));
+                          } else {
+                            setUploadError(res.message || "Upload failed");
+                          }
+                        } catch (err) {
+                          setUploadError((err as Error).message || "Upload error");
+                        } finally {
+                          setUploading(false);
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span className="px-3 py-2 bg-[#F4F5F7] rounded-lg border border-[#E5E7EB] text-[13px]">Upload to Gallery</span>
+                  </label>
+                  {uploading && <span className="text-[13px] text-[#666]">Uploading…</span>}
+                  {uploadError && <span className="text-[13px] text-red-600">{uploadError}</span>}
+                </div>
               </Field>
             </Section>
           )}

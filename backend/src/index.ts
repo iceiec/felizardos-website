@@ -4,6 +4,8 @@ import morgan from "morgan";
 import { env } from "./config/env";
 import { connectDB, ensureDefaultAdmin } from "./config/db";
 import apiRoutes from "./routes";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 
@@ -12,6 +14,11 @@ app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 if (env.NODE_ENV === "development") app.use(morgan("dev"));
+
+// Serve uploaded files (public/uploads)
+const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+fs.mkdirSync(uploadsDir, { recursive: true });
+app.use("/uploads", express.static(uploadsDir));
 
 // Routes
 app.use("/api", apiRoutes);

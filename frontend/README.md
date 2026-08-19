@@ -201,3 +201,20 @@ See `FRONTEND.md → Connecting to the Backend` for the step-by-step migration.
 	```
 
 If you'd like, I can add an automated `sitemap.xml` route to the backend and example JSON-LD snippets for the most important pages.
+ 
+---
+
+## Uploading images for content
+
+You can now either provide public image URLs in the admin content editor or upload image files directly to the backend.
+
+- **Backend upload endpoint:** `POST /api/uploads` — accepts a multipart/form-data `file` field and returns `{ success: true, data: { url, filename } }`.
+- **Where files are stored:** `backend/public/uploads` and served at `https://<your-server>/uploads/<filename>`.
+- **Frontend helper:** use `src/app/services/uploadService.ts` which exposes `uploadFile(file: File)` and returns the uploaded file URL.
+
+Usage (example in admin content form):
+
+1. Let admins choose either "Image URL" or "Upload file".
+2. If uploading, call `uploadFile(file)` to get a URL, then save that URL into the `SiteContent` via `PUT /api/content`.
+
+Note: the backend uses `multer` to handle uploads. Run `npm install` in the `backend/` folder to ensure the dependency is installed.

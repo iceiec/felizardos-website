@@ -10,6 +10,8 @@ const schedules_1 = __importDefault(require("./schedules"));
 const maintenance_1 = __importDefault(require("./maintenance"));
 const content_1 = __importDefault(require("./content"));
 const settings_1 = __importDefault(require("./settings"));
+const misc_1 = __importDefault(require("./misc"));
+const uploads_1 = __importDefault(require("./uploads"));
 const router = (0, express_1.Router)();
 router.use("/auth", auth_1.default);
 router.use("/facilities", facilities_1.default);
@@ -17,5 +19,7 @@ router.use("/schedules", schedules_1.default);
 router.use("/maintenance", maintenance_1.default);
 router.use("/content", content_1.default);
 router.use("/settings", settings_1.default);
+router.use("/", misc_1.default);
+router.use("/uploads", uploads_1.default);
 exports.default = router;
 //# sourceMappingURL=index.js.map

@@ -712,6 +712,31 @@ export default router;
   - Admins edit landing copy and hero/OG images via the admin Content page (`/admin/content`), which calls `PUT /api/content`. The frontend reads the updated content and `SEO.tsx` reflects changes immediately on the client.
 
 If you want, I can implement the `sitemap.xml` route and a `robots.txt` endpoint now and wire them into the router.
+ 
+---
+
+## Image uploads for site content
+
+You can upload images via a simple backend endpoint and then save the returned URL into the `SiteContent` document.
+
+- **Endpoint:** `POST /api/uploads` (multipart/form-data with `file` field)
+  - Response: `{ success: true, data: { url, filename } }` where `url` is the publicly accessible path (e.g. `http://localhost:5000/uploads/168...-hero.jpg`).
+- **Storage:** files are saved to `backend/public/uploads` and served statically at `/uploads`.
+- **Frontend helper:** the frontend includes `src/app/services/uploadService.ts` which uploads a `File` and returns the `url` to store in `SiteContent`.
+
+Developer notes:
+- The server's `SERVER_ORIGIN` is inferred from requests; if you deploy behind a proxy or need absolute hostnames in responses, set an explicit `SERVER_ORIGIN` environment variable or ensure the `Host` header is preserved.
+- Install dependencies before using uploads:
+
+```bash
+cd backend
+npm install
+```
+
+Example flow (admin content page):
+1. Admin chooses a local image file and clicks upload.
+2. Frontend calls `uploadFile(file)` → gets `url`.
+3. Frontend sends `PUT /api/content` with the updated `heroImage` or `pavilionImage` set to the returned `url`.
 
 ---
 

@@ -9,6 +9,8 @@ const morgan_1 = __importDefault(require("morgan"));
 const env_1 = require("./config/env");
 const db_1 = require("./config/db");
 const routes_1 = __importDefault(require("./routes"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const app = (0, express_1.default)();
 // Middleware
 app.use((0, cors_1.default)({ origin: env_1.env.CLIENT_ORIGIN, credentials: true }));
@@ -16,6 +18,10 @@ app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 if (env_1.env.NODE_ENV === "development")
     app.use((0, morgan_1.default)("dev"));
+// Serve uploaded files (public/uploads)
+const uploadsDir = path_1.default.join(__dirname, "..", "public", "uploads");
+fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+app.use("/uploads", express_1.default.static(uploadsDir));
 // Routes
 app.use("/api", routes_1.default);
 // Health check
